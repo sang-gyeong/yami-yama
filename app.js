@@ -57,6 +57,70 @@ function normalize(value) {
   return String(value).trim().toLowerCase();
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function toArray(value) {
+  return Array.isArray(value) ? value : [value];
+}
+
+function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
+  const rawAnswers = toArray(answer);
+  if (rawAnswers.length === 0) {
+    throw new Error(`${questionIndex + 1}번 객관식 문제의 answer가 비어 있습니다.`);
+  }
+
+  const mappedIndexes = rawAnswers.map((ans) => {
+    if (typeof ans === "number" && Number.isInteger(ans) && ans >= 1 && ans <= choices.length) {
+      return ans - 1;
+    }
+
+    const asText = String(ans).trim();
+    if (!asText) {
+      throw new Error(`${questionIndex + 1}번 객관식 문제의 answer에 빈 값이 있습니다.`);
+    }
+
+    if (/^\d+$/.test(asText)) {
+      const numeric = Number(asText);
+      if (numeric >= 1 && numeric <= choices.length) {
+        return numeric - 1;
+      }
+    }
+
+    const byTextIndex = choices.findIndex((choice) => normalize(choice) === normalize(asText));
+    if (byTextIndex === -1) {
+      throw new Error(
+        `${questionIndex + 1}번 객관식 문제의 answer("${asText}")가 choices에 존재하지 않습니다.`
+      );
+    }
+
+    return byTextIndex;
+  });
+
+  return [...new Set(mappedIndexes)].sort((a, b) => a - b);
+}
+
+function formatMultipleAnswer(indexes) {
+  return indexes.map((idx) => `${idx + 1}번`).join(", ");
+}
+
+function formatShortAnswer(answers) {
+  return answers.map((answer) => String(answer)).join(" / ");
+}
+
+function getCorrectAnswerDisplay(question) {
+  if (question.type === "multiple") {
+    return formatMultipleAnswer(question.correctIndexes);
+  }
+  return formatShortAnswer(question.acceptedAnswers);
+}
+
 function parseQuestions(rawText) {
   const parsed = JSON.parse(rawText);
   if (!Array.isArray(parsed) || parsed.length === 0) {
@@ -67,20 +131,36 @@ function parseQuestions(rawText) {
     if (!["multiple", "short"].includes(item.type)) {
       throw new Error(`${index + 1}번 문제의 type은 multiple 또는 short 이어야 합니다.`);
     }
-    if (!item.question || !item.answer) {
+    if (!item.question || item.answer === undefined || item.answer === null) {
       throw new Error(`${index + 1}번 문제에 question 또는 answer가 없습니다.`);
     }
+
     if (item.type === "multiple") {
       if (!Array.isArray(item.choices) || item.choices.length < 2) {
         throw new Error(`${index + 1}번 객관식 문제는 choices 배열(2개 이상)이 필요합니다.`);
       }
+
+      const correctIndexes = parseMultipleAnswerIndexes(item.answer, item.choices, index);
+      return {
+        type: item.type,
+        question: item.question,
+        choices: item.choices,
+        correctIndexes,
+        isMultiAnswer: correctIndexes.length > 1,
+        explanation: item.explanation || "해설이 제공되지 않았습니다."
+      };
+    }
+
+    const acceptedAnswers = toArray(item.answer).map((answer) => String(answer)).filter((answer) => answer.trim());
+    if (acceptedAnswers.length === 0) {
+      throw new Error(`${index + 1}번 주관식 문제의 answer가 비어 있습니다.`);
     }
 
     return {
       type: item.type,
       question: item.question,
-      choices: item.choices || [],
-      answer: String(item.answer),
+      choices: [],
+      acceptedAnswers,
       explanation: item.explanation || "해설이 제공되지 않았습니다."
     };
   });
@@ -106,12 +186,13 @@ function renderQuestion() {
   finishBtn.classList.add("hidden");
 
   if (q.type === "multiple") {
+    const inputType = q.isMultiAnswer ? "checkbox" : "radio";
     answerArea.innerHTML = q.choices
       .map(
         (choice, idx) => `
         <label class="choice">
-          <input type="radio" name="choice" value="${String(choice).replaceAll('"', '&quot;')}" />
-          ${idx + 1}. ${choice}
+          <input type="${inputType}" name="choice" value="${idx}" />
+          ${idx + 1}. ${escapeHtml(choice)}
         </label>
       `
       )
@@ -124,32 +205,76 @@ function renderQuestion() {
 function collectUserAnswer() {
   const q = getCurrentQuestion();
   if (q.type === "multiple") {
+    if (q.isMultiAnswer) {
+      return Array.from(document.querySelectorAll('input[name="choice"]:checked')).map((input) => Number(input.value));
+    }
+
     const selected = document.querySelector('input[name="choice"]:checked');
-    return selected ? selected.value : "";
+    return selected ? Number(selected.value) : null;
   }
+
   const input = document.getElementById("short-answer");
   return input ? input.value : "";
 }
 
 function evaluateAnswer(userAnswer, question) {
-  return normalize(userAnswer) === normalize(question.answer);
+  if (question.type === "multiple") {
+    if (question.isMultiAnswer) {
+      if (!Array.isArray(userAnswer) || userAnswer.length !== question.correctIndexes.length) {
+        return false;
+      }
+      const sortedUser = [...userAnswer].sort((a, b) => a - b);
+      return sortedUser.every((value, idx) => value === question.correctIndexes[idx]);
+    }
+
+    return userAnswer === question.correctIndexes[0];
+  }
+
+  return question.acceptedAnswers.some((answer) => normalize(userAnswer) === normalize(answer));
+}
+
+function getUserAnswerDisplay(userAnswer, question) {
+  if (question.type === "multiple") {
+    if (question.isMultiAnswer) {
+      if (!Array.isArray(userAnswer) || userAnswer.length === 0) {
+        return "선택 없음";
+      }
+      return formatMultipleAnswer([...userAnswer].sort((a, b) => a - b));
+    }
+
+    if (typeof userAnswer !== "number") {
+      return "선택 없음";
+    }
+    return `${userAnswer + 1}번`;
+  }
+
+  return userAnswer;
 }
 
 function handleSubmit() {
   const question = getCurrentQuestion();
   const userAnswer = collectUserAnswer();
 
-  if (!userAnswer.trim()) {
+  const isEmptyAnswer =
+    question.type === "multiple"
+      ? question.isMultiAnswer
+        ? userAnswer.length === 0
+        : userAnswer === null
+      : !userAnswer.trim();
+
+  if (isEmptyAnswer) {
     feedbackBox.className = "feedback incorrect";
     feedbackBox.textContent = "답안을 입력하거나 선택해주세요.";
     return;
   }
 
   const isCorrect = evaluateAnswer(userAnswer, question);
+  const correctAnswerDisplay = getCorrectAnswerDisplay(question);
+
   state.answers[state.currentIndex] = {
-    userAnswer,
+    userAnswerDisplay: getUserAnswerDisplay(userAnswer, question),
     isCorrect,
-    correctAnswer: question.answer,
+    correctAnswerDisplay,
     explanation: question.explanation,
     question: question.question
   };
@@ -158,8 +283,8 @@ function handleSubmit() {
     feedbackBox.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
     feedbackBox.innerHTML = `
       <strong>${isCorrect ? "정답입니다!" : "오답입니다."}</strong><br/>
-      정답: ${question.answer}<br/>
-      해설: ${question.explanation}
+      정답: ${escapeHtml(correctAnswerDisplay)}<br/>
+      해설: ${escapeHtml(question.explanation)}
     `;
   }
 
@@ -197,12 +322,12 @@ function renderResult() {
 
     const explanationText =
       state.reviewMode === "end" || !item.isCorrect
-        ? `<div><strong>정답:</strong> ${item.correctAnswer}</div><div><strong>해설:</strong> ${item.explanation}</div>`
+        ? `<div><strong>정답:</strong> ${escapeHtml(item.correctAnswerDisplay)}</div><div><strong>해설:</strong> ${escapeHtml(item.explanation)}</div>`
         : "";
 
     resultItem.innerHTML = `
-      <div><strong>${idx + 1}. ${item.question}</strong></div>
-      <div>내 답: ${item.userAnswer}</div>
+      <div><strong>${idx + 1}. ${escapeHtml(item.question)}</strong></div>
+      <div>내 답: ${escapeHtml(item.userAnswerDisplay)}</div>
       <div>${item.isCorrect ? "✅ 정답" : "❌ 오답"}</div>
       ${explanationText}
     `;
@@ -212,9 +337,9 @@ function renderResult() {
 
   if (wrong > 0) {
     motivation.textContent =
-      "괜찮아요, 오답은 실력 향상의 지름길입니다. 틀린 문제만 다시 풀어보며 정확도를 끌어올려봅시다!";
+      "지금이 성장 타이밍! 틀린 문제를 바로 다시 잡으면 실력이 폭발적으로 올라갑니다. 한 번 더 달려서 점수 갈아치워봐요! 🔥";
   } else {
-    motivation.textContent = "완벽합니다! 지금 페이스를 유지해보세요. 🚀";
+    motivation.textContent = "와우, 전부 정답! 이 집중력 그대로 다음 세트도 압도해봐요. 오늘 폼 미쳤다! ⚡";
   }
 
   document.getElementById("retry-wrong-btn").disabled = wrong === 0;
@@ -240,7 +365,7 @@ document.getElementById("start-btn").addEventListener("click", () => {
     state.round = 1;
     startQuiz([...state.originalSet]);
   } catch (error) {
-    setupError.textContent = `JSON 파싱 실패: ${error.message}`;
+    setupError.textContent = `문제 세트 로드 실패: ${error.message}`;
   }
 });
 
