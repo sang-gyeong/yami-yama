@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>셀프 기출문제 트레이너</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-header">
+        <h1>셀프 기출문제 트레이너</h1>
+        <p>JSON을 붙여넣고 실제 시험처럼 연습하세요.</p>
+      </header>
+
+      <main>
+        <section id="setup-screen" class="card screen active">
+          <h2>문제 세트 준비</h2>
+          <p class="help-text">
+            아래에 문제 JSON을 붙여넣으세요. 객관식(<code>type: "multiple"</code>), 주관식(<code>type: "short"</code>)을 모두 지원합니다.
+          </p>
+          <textarea
+            id="json-input"
+            placeholder='예시: [{"type":"multiple","question":"...","choices":["A","B"],"answer":"A","explanation":"..."}]'
+          ></textarea>
+
+          <details class="format-guide">
+            <summary>JSON 형식 가이드 보기</summary>
+            <pre id="json-example"></pre>
+          </details>
+
+          <div class="options">
+            <h3>정답/해설 확인 시점</h3>
+            <label>
+              <input type="radio" name="review-mode" value="immediate" checked />
+              문제를 풀 때마다 바로 확인
+            </label>
+            <label>
+              <input type="radio" name="review-mode" value="end" />
+              한 세트 전부 푼 뒤 몰아서 확인
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="start-btn" class="primary">문제 시작</button>
+          </div>
+          <p id="setup-error" class="error"></p>
+        </section>
+
+        <section id="exam-screen" class="card screen" aria-live="polite">
+          <div class="exam-header">
+            <div>
+              <h2>시험 진행</h2>
+              <p id="progress-text"></p>
+            </div>
+            <div id="mode-badge" class="badge"></div>
+          </div>
+
+          <article class="question-box">
+            <h3 id="question-title"></h3>
+            <p id="question-text"></p>
+            <form id="answer-form">
+              <div id="answer-area"></div>
+            </form>
+          </article>
+
+          <div id="feedback-box" class="feedback hidden"></div>
+
+          <div class="actions">
+            <button id="submit-btn" class="primary">제출</button>
+            <button id="next-btn" class="secondary hidden">다음 문제</button>
+            <button id="finish-btn" class="secondary hidden">결과 보기</button>
+          </div>
+        </section>
+
+        <section id="result-screen" class="card screen" aria-live="polite">
+          <h2>시험 결과</h2>
+          <div id="result-summary" class="summary"></div>
+          <div id="motivation" class="motivation"></div>
+          <div id="result-list" class="result-list"></div>
+
+          <div class="actions wrap">
+            <button id="retry-wrong-btn" class="primary">틀린 문제만 다시 풀기</button>
+            <button id="retry-all-btn" class="secondary">전체 문제 재테스트</button>
+            <button id="go-home-btn" class="ghost">처음으로</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
