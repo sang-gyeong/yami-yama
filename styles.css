@@ -13,12 +13,17 @@
 
 * {
   box-sizing: border-box;
-  font-family: "Gowun Dodum", sans-serif;
+  font-family: 'Gowun Dodum', sans-serif;
 }
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top, #6b1743 0%, var(--bg) 48%, #2c0620 100%);
+  background: radial-gradient(
+    circle at top,
+    #6b1743 0%,
+    var(--bg) 48%,
+    #2c0620 100%
+  );
   color: var(--text);
 }
 
@@ -29,10 +34,16 @@ body {
 }
 
 .candy-panel {
-  background: linear-gradient(180deg, rgba(255, 123, 0, 0.2), rgba(136, 7, 57, 0.45)), var(--panel);
+  background: linear-gradient(
+      180deg,
+      rgba(255, 123, 0, 0.2),
+      rgba(136, 7, 57, 0.45)
+    ),
+    var(--panel);
   border: 4px solid var(--line);
   border-radius: 30px;
-  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.2), inset 0 -8px 0 rgba(0, 0, 0, 0.15), 0 16px 28px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -8px 0 rgba(0, 0, 0, 0.15), 0 16px 28px rgba(0, 0, 0, 0.3);
 }
 
 .top-header {
@@ -275,7 +286,8 @@ button {
   cursor: pointer;
   color: #fff7db;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.24);
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.23), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.23),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.2);
 }
 
 button.primary {
