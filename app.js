@@ -1,18 +1,26 @@
 const sampleJson = [
   {
     type: "multiple",
-    question: "HTTP 상태코드 404의 의미는?",
-    choices: ["요청 성공", "서버 오류", "리소스를 찾을 수 없음", "권한 없음"],
-    answer: "리소스를 찾을 수 없음",
-    explanation: "404 Not Found는 서버에 요청한 리소스가 존재하지 않을 때 사용됩니다."
+    question: "다음 중 웹 접근성을 높이는 방법을 모두 고르시오.",
+    choices: ["이미지에 alt 텍스트 제공", "색상만으로 정보 전달", "시맨틱 태그 사용", "키보드 탐색 지원"],
+    answer: [1, 3, 4],
+    explanation: "대체 텍스트, 시맨틱 마크업, 키보드 지원은 접근성 향상에 핵심입니다."
   },
   {
     type: "short",
-    question: "CSS에서 요소를 가로 중앙 정렬할 때 자주 사용하는 속성 조합은? (블록 요소 기준)",
-    answer: "margin: 0 auto",
-    explanation: "너비가 있는 블록 요소의 좌우 마진을 auto로 설정하면 가로 중앙 정렬됩니다."
+    question: "CSS에서 블록 요소를 가로 중앙 정렬할 때 자주 쓰는 속성 조합은?",
+    answer: ["margin: 0 auto", "margin:0 auto"],
+    explanation: "너비가 지정된 블록 요소에 좌우 margin을 auto로 주면 가운데 정렬됩니다."
+  },
+  {
+    type: "essay",
+    question: "서술형: 오늘 공부한 내용을 2~3문장으로 요약해보세요.",
+    answer: "핵심 개념을 짧고 명확하게 정리합니다.",
+    explanation: "서술형은 제시된 핵심 표현과 의미가 일치하는지 확인해보세요."
   }
 ];
+
+const jsonGuideText = JSON.stringify(sampleJson, null, 2);
 
 const state = {
   originalSet: [],
@@ -30,6 +38,8 @@ const resultScreen = document.getElementById("result-screen");
 const jsonInput = document.getElementById("json-input");
 const jsonExample = document.getElementById("json-example");
 const setupError = document.getElementById("setup-error");
+const copyGuideBtn = document.getElementById("copy-guide-btn");
+const copyGuideStatus = document.getElementById("copy-guide-status");
 
 const progressText = document.getElementById("progress-text");
 const modeBadge = document.getElementById("mode-badge");
@@ -46,7 +56,8 @@ const resultSummary = document.getElementById("result-summary");
 const resultList = document.getElementById("result-list");
 const motivation = document.getElementById("motivation");
 
-jsonExample.textContent = JSON.stringify(sampleJson, null, 2);
+jsonExample.textContent = jsonGuideText;
+jsonInput.placeholder = jsonGuideText;
 
 function showScreen(screen) {
   [setupScreen, examScreen, resultScreen].forEach((el) => el.classList.remove("active"));
@@ -128,8 +139,8 @@ function parseQuestions(rawText) {
   }
 
   return parsed.map((item, index) => {
-    if (!["multiple", "short"].includes(item.type)) {
-      throw new Error(`${index + 1}번 문제의 type은 multiple 또는 short 이어야 합니다.`);
+    if (!["multiple", "short", "essay"].includes(item.type)) {
+      throw new Error(`${index + 1}번 문제의 type은 multiple, short 또는 essay 이어야 합니다.`);
     }
     if (!item.question || item.answer === undefined || item.answer === null) {
       throw new Error(`${index + 1}번 문제에 question 또는 answer가 없습니다.`);
@@ -197,9 +208,16 @@ function renderQuestion() {
       `
       )
       .join("");
-  } else {
-    answerArea.innerHTML = '<input class="short-input" type="text" id="short-answer" placeholder="정답을 입력하세요" />';
+    return;
   }
+
+  if (q.type === "essay") {
+    answerArea.innerHTML =
+      '<textarea class="essay-input" id="essay-answer" rows="5" placeholder="핵심 키워드를 넣어서 2~3문장으로 작성해보세요."></textarea>';
+    return;
+  }
+
+  answerArea.innerHTML = '<input class="short-input" type="text" id="short-answer" placeholder="정답을 입력하세요" />';
 }
 
 function collectUserAnswer() {
@@ -318,7 +336,7 @@ function renderResult() {
   resultList.innerHTML = "";
   state.answers.forEach((item, idx) => {
     const resultItem = document.createElement("div");
-    resultItem.className = `result-item ${item.isCorrect ? "" : "incorrect"}`;
+    resultItem.className = `result-item ${item.isCorrect ? "correct" : "incorrect"}`;
 
     const explanationText =
       state.reviewMode === "end" || !item.isCorrect
@@ -354,6 +372,25 @@ function startQuiz(questions) {
   renderQuestion();
 }
 
+async function copyGuideToClipboard() {
+  try {
+    await navigator.clipboard.writeText(jsonGuideText);
+    copyGuideStatus.textContent = "복사 완료! ✅";
+  } catch {
+    const temp = document.createElement("textarea");
+    temp.value = jsonGuideText;
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand("copy");
+    document.body.removeChild(temp);
+    copyGuideStatus.textContent = "복사 완료! ✅";
+  }
+
+  setTimeout(() => {
+    copyGuideStatus.textContent = "";
+  }, 1500);
+}
+
 document.getElementById("start-btn").addEventListener("click", () => {
   setupError.textContent = "";
 
@@ -369,6 +406,7 @@ document.getElementById("start-btn").addEventListener("click", () => {
   }
 });
 
+copyGuideBtn.addEventListener("click", copyGuideToClipboard);
 submitBtn.addEventListener("click", handleSubmit);
 nextBtn.addEventListener("click", goNext);
 finishBtn.addEventListener("click", renderResult);

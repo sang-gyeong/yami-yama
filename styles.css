@@ -15,6 +15,7 @@
 
 * {
   box-sizing: border-box;
+  font-family: "Gowun Dodum", sans-serif;
 }
 
 body {
@@ -88,6 +89,19 @@ textarea {
   color: var(--muted);
 }
 
+.guide-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.copy-status {
+  color: #9d5779;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 pre {
   margin: 8px 0 0;
   background: #fff8fd;
@@ -156,7 +170,8 @@ pre {
   box-shadow: 0 6px 14px rgba(255, 127, 181, 0.14);
 }
 
-.short-input {
+.short-input,
+.essay-input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -170,6 +185,26 @@ pre {
   border-radius: 14px;
   padding: 12px;
   border: 1px solid;
+}
+
+.feedback-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.feedback-line {
+  line-height: 1.6;
+}
+
+.answer-line {
+  margin-top: 4px;
+}
+
+.explanation-line {
+  margin-top: 10px;
 }
 
 .feedback.correct {
