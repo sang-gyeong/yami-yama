@@ -162,12 +162,9 @@ function parseQuestions(rawText) {
       };
     }
 
-    const acceptedAnswers = toArray(item.answer)
-      .map((answer) => String(answer).trim())
-      .filter(Boolean);
-
+    const acceptedAnswers = toArray(item.answer).map((answer) => String(answer)).filter((answer) => answer.trim());
     if (acceptedAnswers.length === 0) {
-      throw new Error(`${index + 1}번 ${item.type === "essay" ? "서술형" : "주관식"} 문제의 answer가 비어 있습니다.`);
+      throw new Error(`${index + 1}번 주관식 문제의 answer가 비어 있습니다.`);
     }
 
     return {
@@ -234,11 +231,6 @@ function collectUserAnswer() {
     return selected ? Number(selected.value) : null;
   }
 
-  if (q.type === "essay") {
-    const input = document.getElementById("essay-answer");
-    return input ? input.value : "";
-  }
-
   const input = document.getElementById("short-answer");
   return input ? input.value : "";
 }
@@ -277,17 +269,6 @@ function getUserAnswerDisplay(userAnswer, question) {
   return userAnswer;
 }
 
-function renderFeedback(isCorrect, correctAnswerDisplay, explanation) {
-  feedbackBox.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
-  feedbackBox.innerHTML = `
-    <div class="feedback-status ${isCorrect ? "status-correct" : "status-incorrect"}">
-      ${isCorrect ? "✅ 정답입니다!" : "❌ 오답입니다."}
-    </div>
-    <div class="feedback-line answer-line"><strong>정답:</strong> ${escapeHtml(correctAnswerDisplay)}</div>
-    <div class="feedback-line explanation-line"><strong>해설:</strong> ${escapeHtml(explanation)}</div>
-  `;
-}
-
 function handleSubmit() {
   const question = getCurrentQuestion();
   const userAnswer = collectUserAnswer();
@@ -317,7 +298,12 @@ function handleSubmit() {
   };
 
   if (state.reviewMode === "immediate") {
-    renderFeedback(isCorrect, correctAnswerDisplay, question.explanation);
+    feedbackBox.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
+    feedbackBox.innerHTML = `
+      <strong>${isCorrect ? "정답입니다!" : "오답입니다."}</strong><br/>
+      정답: ${escapeHtml(correctAnswerDisplay)}<br/>
+      해설: ${escapeHtml(question.explanation)}
+    `;
   }
 
   submitBtn.disabled = true;
@@ -354,13 +340,13 @@ function renderResult() {
 
     const explanationText =
       state.reviewMode === "end" || !item.isCorrect
-        ? `<div class="feedback-line answer-line"><strong>정답:</strong> ${escapeHtml(item.correctAnswerDisplay)}</div><div class="feedback-line explanation-line"><strong>해설:</strong> ${escapeHtml(item.explanation)}</div>`
+        ? `<div><strong>정답:</strong> ${escapeHtml(item.correctAnswerDisplay)}</div><div><strong>해설:</strong> ${escapeHtml(item.explanation)}</div>`
         : "";
 
     resultItem.innerHTML = `
       <div><strong>${idx + 1}. ${escapeHtml(item.question)}</strong></div>
       <div>내 답: ${escapeHtml(item.userAnswerDisplay)}</div>
-      <div class="result-status ${item.isCorrect ? "status-correct" : "status-incorrect"}">${item.isCorrect ? "✅ 정답" : "❌ 오답"}</div>
+      <div>${item.isCorrect ? "✅ 정답" : "❌ 오답"}</div>
       ${explanationText}
     `;
 
