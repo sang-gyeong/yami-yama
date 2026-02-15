@@ -17,16 +17,15 @@
         <section id="setup-screen" class="card screen active">
           <h2>문제 세트 준비</h2>
           <p class="help-text">
-            아래에 문제 JSON을 붙여넣으세요. 객관식(<code>type: "multiple"</code>), 주관식(<code>type: "short"</code>), 서술형(<code>type: "essay"</code>)을 모두 지원합니다.
+            아래에 문제 JSON을 붙여넣으세요. 객관식(<code>type: "multiple"</code>), 주관식(<code>type: "short"</code>)을 모두 지원합니다.
           </p>
-          <textarea id="json-input"></textarea>
+          <textarea
+            id="json-input"
+            placeholder='예시: [{"type":"multiple","question":"...","choices":["A","B"],"answer":"A","explanation":"..."}]'
+          ></textarea>
 
           <details class="format-guide">
             <summary>JSON 형식 가이드 보기</summary>
-            <div class="guide-actions">
-              <button id="copy-guide-btn" type="button" class="secondary">가이드 복사</button>
-              <span id="copy-guide-status" class="copy-status" aria-live="polite"></span>
-            </div>
             <pre id="json-example"></pre>
           </details>
 
