@@ -170,6 +170,39 @@ pre {
   background: #fffaff;
 }
 
+
+.essay-input {
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 11px;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: #fffaff;
+  resize: vertical;
+}
+
+.choice.correct-choice {
+  border-color: #9fe6c2;
+  background: #ecfff5;
+}
+
+.choice.wrong-choice {
+  border-color: #ffb8cf;
+  background: #fff0f6;
+}
+
+.text-correct {
+  border-color: #9fe6c2;
+  background: #ecfff5;
+}
+
+.text-wrong {
+  border-color: #ffb8cf;
+  background: #fff0f6;
+}
+
 .feedback {
   margin-top: 16px;
   border-radius: 14px;
