@@ -19,7 +19,7 @@
 
 body {
   margin: 0;
-  font-family: 'Song Myung', serif;
+  font-family: 'Gowun Dodum', sans-serif;
   background: radial-gradient(
     circle at top,
     #ffeefd 0%,
@@ -30,8 +30,8 @@ body {
 }
 
 
-.song-myung-regular {
-  font-family: 'Song Myung', serif;
+.gowun-dodum-regular {
+  font-family: 'Gowun Dodum', sans-serif;
   font-weight: 400;
   font-style: normal;
 }
@@ -238,6 +238,22 @@ pre {
   color: var(--bad);
 }
 
+
+.feedback-title {
+  margin-bottom: 10px;
+  font-size: 1.05rem;
+}
+
+.feedback-row {
+  margin-top: 8px;
+  line-height: 1.65;
+}
+
+.feedback-explanation {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+}
 .hidden {
   display: none;
 }
@@ -309,13 +325,18 @@ button.ghost {
 .result-item {
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 10px;
+  padding: 16px;
   background: #fffdfd;
+  line-height: 1.7;
 }
 
 .result-item.incorrect {
   border-color: #ffc5da;
   background: #fff1f7;
+}
+
+.result-item > div + div {
+  margin-top: 8px;
 }
 
 .motivation {

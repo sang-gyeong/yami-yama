@@ -132,7 +132,10 @@ function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
   return [...new Set(mappedIndexes)].sort((a, b) => a - b);
 }
 
-function formatMultipleAnswer(indexes) {
+function formatMultipleAnswer(indexes, choices, { useChoiceText = false } = {}) {
+  if (useChoiceText) {
+    return indexes.map((idx) => String(choices[idx] ?? '')).join(' / ');
+  }
   return indexes.map((idx) => `${idx + 1}번`).join(', ');
 }
 
@@ -140,11 +143,23 @@ function formatTextAnswer(answers) {
   return answers.map((answer) => String(answer)).join(' / ');
 }
 
-function getCorrectAnswerDisplay(question) {
+function getCorrectAnswerDisplay(question, { useChoiceText = false } = {}) {
   if (question.type === 'multiple') {
-    return formatMultipleAnswer(question.correctIndexes);
+    return formatMultipleAnswer(question.correctIndexes, question.choices, {
+      useChoiceText,
+    });
   }
   return formatTextAnswer(question.acceptedAnswers);
+}
+
+function buildFeedbackHtml({ isCorrect, userAnswerDisplay, correctAnswerDisplay, explanation }) {
+  const answerTitle = isCorrect ? '정답입니다!' : '오답입니다.';
+  return `
+    <div class="feedback-title"><strong>${answerTitle}</strong></div>
+    <div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>
+    <div class="feedback-row"><strong>정답:</strong> ${escapeHtml(correctAnswerDisplay)}</div>
+    <div class="feedback-row feedback-explanation"><strong>해설:</strong> ${escapeHtml(explanation)}</div>
+  `;
 }
 
 function parseQuestions(rawText) {
@@ -352,11 +367,12 @@ function applySavedAnswer(answerRecord, question) {
       feedbackBox.className = `feedback ${
         answerRecord.isCorrect ? 'correct' : 'incorrect'
       }`;
-      feedbackBox.innerHTML = `
-        <strong>${answerRecord.isCorrect ? '정답입니다!' : '오답입니다.'}</strong><br/>
-        정답: ${escapeHtml(answerRecord.correctAnswerDisplay)}<br/>
-        해설: ${escapeHtml(question.explanation)}
-      `;
+      feedbackBox.innerHTML = buildFeedbackHtml({
+        isCorrect: answerRecord.isCorrect,
+        userAnswerDisplay: answerRecord.userAnswerDisplay,
+        correctAnswerDisplay: answerRecord.correctAnswerDisplay,
+        explanation: question.explanation,
+      });
     }
   } else {
     const input = document.getElementById('text-answer');
@@ -370,15 +386,16 @@ function applySavedAnswer(answerRecord, question) {
       feedbackBox.className = `feedback ${
         answerRecord.isCorrect ? 'correct' : 'incorrect'
       }`;
-      feedbackBox.innerHTML = `
-        <strong>${answerRecord.isCorrect ? '정답입니다!' : '오답입니다.'}</strong><br/>
-        정답: ${escapeHtml(answerRecord.correctAnswerDisplay)}<br/>
-        해설: ${escapeHtml(question.explanation)}
-      `;
+      feedbackBox.innerHTML = buildFeedbackHtml({
+        isCorrect: answerRecord.isCorrect,
+        userAnswerDisplay: answerRecord.userAnswerDisplay,
+        correctAnswerDisplay: answerRecord.correctAnswerDisplay,
+        explanation: question.explanation,
+      });
     }
   }
 
-  submitBtn.disabled = true;
+  submitBtn.classList.add('hidden');
   const isLast = state.currentIndex === state.quizSet.length - 1;
   if (isLast) {
     finishBtn.classList.remove('hidden');
@@ -433,13 +450,15 @@ function getUserAnswerDisplay(userAnswer, question) {
       if (!Array.isArray(userAnswer) || userAnswer.length === 0) {
         return '선택 없음';
       }
-      return formatMultipleAnswer([...userAnswer].sort((a, b) => a - b));
+      return formatMultipleAnswer([...userAnswer].sort((a, b) => a - b), question.choices, {
+        useChoiceText: true,
+      });
     }
 
     if (typeof userAnswer !== 'number') {
       return '선택 없음';
     }
-    return `${userAnswer + 1}번`;
+    return question.choices[userAnswer] || '선택 없음';
   }
 
   return userAnswer;
@@ -463,11 +482,14 @@ function handleSubmit() {
   }
 
   const isCorrect = evaluateAnswer(userAnswer, question);
-  const correctAnswerDisplay = getCorrectAnswerDisplay(question);
+  const correctAnswerDisplay = getCorrectAnswerDisplay(question, {
+    useChoiceText: question.type === 'multiple',
+  });
+  const userAnswerDisplay = getUserAnswerDisplay(userAnswer, question);
 
   state.answers[state.currentIndex] = {
     rawUserAnswer: Array.isArray(userAnswer) ? [...userAnswer] : userAnswer,
-    userAnswerDisplay: getUserAnswerDisplay(userAnswer, question),
+    userAnswerDisplay,
     isCorrect,
     correctAnswerDisplay,
     explanation: question.explanation,
@@ -476,11 +498,12 @@ function handleSubmit() {
 
   if (state.reviewMode === 'immediate') {
     feedbackBox.className = `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
-    feedbackBox.innerHTML = `
-      <strong>${isCorrect ? '정답입니다!' : '오답입니다.'}</strong><br/>
-      정답: ${escapeHtml(correctAnswerDisplay)}<br/>
-      해설: ${escapeHtml(question.explanation)}
-    `;
+    feedbackBox.innerHTML = buildFeedbackHtml({
+      isCorrect,
+      userAnswerDisplay,
+      correctAnswerDisplay,
+      explanation: question.explanation,
+    });
 
     if (question.type === 'multiple') {
       paintChoiceResult(question, userAnswer);
@@ -489,7 +512,7 @@ function handleSubmit() {
     }
   }
 
-  submitBtn.disabled = true;
+  submitBtn.classList.add('hidden');
 
   if (state.currentIndex === state.quizSet.length - 1) {
     finishBtn.classList.remove('hidden');
@@ -546,7 +569,8 @@ function renderResultContent() {
       '와우, 전부 정답! 이 집중력 그대로 다음 세트도 압도해봐요. 오늘 폼 미쳤다! ⚡';
   }
 
-  document.getElementById('retry-wrong-btn').disabled = wrong === 0;
+  const retryWrongBtn = document.getElementById('retry-wrong-btn');
+  retryWrongBtn.classList.toggle('hidden', wrong === 0);
 }
 
 function startQuiz(questions) {
