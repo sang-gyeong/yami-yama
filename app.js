@@ -41,6 +41,12 @@ const resultScreen = document.getElementById('result-screen');
 const jsonInput = document.getElementById('json-input');
 const jsonExample = document.getElementById('json-example');
 const setupError = document.getElementById('setup-error');
+const promptTemplate = document.getElementById('prompt-template');
+const copyPromptBtn = document.getElementById('copy-prompt-btn');
+const copyFeedback = document.getElementById('copy-feedback');
+const openGuideBtn = document.getElementById('open-guide-btn');
+const closeGuideBtn = document.getElementById('close-guide-btn');
+const guideModal = document.getElementById('guide-modal');
 
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
@@ -52,12 +58,92 @@ const feedbackBox = document.getElementById('feedback-box');
 const submitBtn = document.getElementById('submit-btn');
 const nextBtn = document.getElementById('next-btn');
 const finishBtn = document.getElementById('finish-btn');
+const examActions = document.getElementById('exam-actions');
 
 const resultSummary = document.getElementById('result-summary');
 const resultList = document.getElementById('result-list');
 const motivation = document.getElementById('motivation');
 
+const medicalPromptTemplate = `너는 의대 시험 출제 전문가이자 문항 검수자다.
+내가 제공하는 자료는 (1) 기출문제/족보(야마) (2) 교안 (3) 교재 발췌다.
+
+목표: **야마의 출제 스타일과 ‘유형별 출제 비율’까지 반드시 따라** 예상문제 세트를 만들고,
+출력은 아래 JSON 형식으로만 반환한다.
+
+[사용자 입력(선택)]
+- 총 문항 수: {TOTAL}
+※ 사용자가 {TOTAL}을 제공하지 않으면, **총 문항 수는 20으로 간주**하고 진행하라.
+
+[핵심 규칙: 야마 기반 자동 비율 결정]
+1) 너는 야마를 먼저 분석해, 실제 야마에서의 문항 유형 비율을 추정하라.
+   - multiple(오지선다 객관식) 비율 %
+   - short(단답형 주관식) 비율 %
+   - essay(서술형) 비율 %
+2) 생성할 문항의 유형 개수는 위 비율을 총 문항 수에 적용해 자동으로 결정하라.
+   - 반올림으로 인해 합이 총 문항 수와 다르면, 야마에서 더 흔한 유형부터 1개씩 가감하여 정확히 맞춰라.
+3) 만약 야마가 사실상 객관식만 출제한다면: 총 문항 수 전부를 객관식으로 구성하라.
+4) 만약 야마에서 주관식(단답/서술)이 “약 10%”처럼 일정 경향이 보인다면:
+   - 총 문항 수의 약 10%를 주관식으로 자동 배정하고(단답/서술 비율도 야마 경향대로),
+   - 나머지는 객관식으로 구성하라.
+5) 위 ‘비율 추정/계산 과정’은 **출력에 절대 쓰지 말 것**(내부적으로만 수행).
+
+[야마 출제 스타일 “필수 준수” 규칙]
+1) 먼저 야마를 분석해서 아래를 내부 규칙으로 만들고, **모든 문항에 1:1로 적용**하라(출력에는 쓰지 말 것).
+   - 지문 톤/문장 길이/표현(자주 쓰는 단어, 종결 어미)
+   - 보기 구성 방식(길이, 문장 형태, 자주 쓰는 함정/오답 패턴)
+   - 단골 주제와 반복 질문 형태(정의형/비교형/예외형/사례형 등)
+   - 숫자/기준/분류 문제를 내는 방식
+2) “야마 스타일 비슷하게”가 아니라, **야마의 문항 템플릿을 그대로 재현**하는 것을 최우선 목표로 한다.
+3) 교안/교재 내용은 ‘근거’로만 쓰되, 문항의 겉모양(톤/형식/함정/분량)은 **항상 야마 기준**으로 만든다.
+
+[출제 원칙]
+1) 범위: 반드시 제공된 자료(야마/교안/교재) 안에서만 출제. 자료에 없는 내용은 만들지 말 것.
+2) 반영 우선순위:
+   - 1순위: 야마 빈출/반복 파트
+   - 2순위: 교안/교재 강조(정의/표/굵게/밑줄/박스/교수 멘트/예외/수치)
+   - 3순위: 둘을 연결한 응용(비교, 예외 조건, 혼동 포인트)
+3) 근거 불확실하면 그 문항은 버리고 다른 문항으로 대체.
+
+[유형별 규칙]
+A) multiple(오지선다)
+- choices는 반드시 5개.
+- 보기 문장은 모두 문장형이며, **야마에서 흔히 쓰는 보기 길이/톤/패턴을 그대로** 맞춘다.
+- 야마가 “복수정답형(옳은 것 모두/옳지 않은 것 모두)”을 쓰는 경향이면 그 비율도 따라라.
+  - 복수정답형일 때는 question에 반드시 “옳은 것을 모두 고르시오” 또는 “옳지 않은 것을 모두 고르시오”를 포함.
+- 해설(explanation)은 반드시 “왜 정답인지” + “각 보기별 O/X 근거”를 포함(야마 해설 스타일이 있으면 그 스타일도 따를 것).
+
+B) short(단답)
+- 한 줄 답이 가능한 형태(키워드/수치/용어/기전 1문장).
+- 야마의 단답형 요구 방식(예: ‘용어만 쓰시오’, ‘수치만 쓰시오’)이 있으면 그대로 재현.
+
+C) essay(서술)
+- 1~3문장으로 답할 수 있게.
+- 야마의 서술형 요구 방식(키워드 포함/비교 서술/기전 서술 등)을 동일하게 재현.
+- answer는 문자열 배열(의미가 같은 표현 후보 1개 이상), explanation에 채점 기준(핵심 포인트) 포함.
+
+[출력 형식(매우 중요)]
+- 출력은 오직 JSON 배열만 출력(머리말/마크다운/코드펜스/설명 금지)
+- 스키마:
+[
+  {
+    "type": "multiple" | "short" | "essay",
+    "question": "문제 텍스트",
+    "choices": ["보기1","보기2","보기3","보기4","보기5"],  // multiple일 때만
+    "answer": "정답 문자열" | ["정답후보1","정답후보2",...],
+    "explanation": "해설 텍스트"
+  }
+]
+- multiple의 answer:
+  - 단일정답이면 문자열 1개(choices 중 하나와 정확히 일치)
+  - 복수정답이면 문자열 배열(각 원소가 choices 문장과 정확히 일치)
+- short의 answer: 문자열 1개
+- essay의 answer: 문자열 배열
+- JSON은 반드시 파싱 가능해야 한다.
+
+이제 위 규칙대로 문항을 생성하라.`;
+
 jsonExample.textContent = JSON.stringify(sampleJson, null, 2);
+promptTemplate.textContent = medicalPromptTemplate;
 
 function showScreen(screen) {
   [setupScreen, examScreen, resultScreen].forEach((el) =>
@@ -255,6 +341,10 @@ function openExam({ replace = false } = {}) {
   showScreen(examScreen);
   renderQuestion();
   setRoute(getExamHash(), { replace });
+}
+
+function focusExamActions() {
+  examActions?.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 function openResult({ replace = false } = {}) {
@@ -519,6 +609,8 @@ function handleSubmit() {
   } else {
     nextBtn.classList.remove('hidden');
   }
+
+  focusExamActions();
 }
 
 function goNext() {
@@ -658,6 +750,32 @@ document.getElementById('retry-wrong-btn').addEventListener('click', () => {
 
 document.getElementById('go-home-btn').addEventListener('click', () => {
   openSetup();
+});
+
+copyPromptBtn?.addEventListener('click', async () => {
+  copyFeedback.textContent = '';
+  try {
+    await navigator.clipboard.writeText(medicalPromptTemplate);
+    copyFeedback.textContent = '프롬프트가 복사되었어요.';
+  } catch (error) {
+    copyFeedback.textContent = '복사에 실패했어요. 직접 선택해서 복사해주세요.';
+  }
+});
+
+openGuideBtn?.addEventListener('click', () => {
+  if (typeof guideModal.showModal === 'function') {
+    guideModal.showModal();
+  }
+});
+
+closeGuideBtn?.addEventListener('click', () => {
+  guideModal.close();
+});
+
+guideModal?.addEventListener('click', (event) => {
+  if (event.target === guideModal) {
+    guideModal.close();
+  }
 });
 
 window.addEventListener('hashchange', applyRouteFromHash);
