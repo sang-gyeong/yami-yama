@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100..900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
@@ -15,8 +15,13 @@
   <body>
     <div class="app-shell">
       <header class="top-header">
-        <h1>야미야마🍪✨</h1>
-        <p>오늘도 한 문제씩 꼭꼭 씹어먹자😋</p>
+        <div>
+          <h1>야미야마🍪✨</h1>
+          <p>오늘도 한 문제씩 꼭꼭 씹어먹자😋</p>
+        </div>
+        <button id="open-guide-btn" class="secondary" type="button">
+          이용 가이드
+        </button>
       </header>
 
       <main>
@@ -36,6 +41,17 @@
           <details class="format-guide">
             <summary>JSON 형식 가이드 보기</summary>
             <pre id="json-example"></pre>
+          </details>
+
+          <details class="format-guide">
+            <summary>의대 예상문제 생성 프롬프트 보기</summary>
+            <div class="prompt-guide-actions">
+              <button id="copy-prompt-btn" class="secondary" type="button">
+                프롬프트 복사
+              </button>
+              <span id="copy-feedback" class="copy-feedback" aria-live="polite"></span>
+            </div>
+            <pre id="prompt-template"></pre>
           </details>
 
           <div class="options">
@@ -80,7 +96,7 @@
 
           <div id="feedback-box" class="feedback hidden"></div>
 
-          <div class="actions">
+          <div class="actions exam-actions" id="exam-actions">
             <button id="submit-btn" class="primary">제출</button>
             <button id="next-btn" class="secondary hidden">다음 문제</button>
             <button id="finish-btn" class="secondary hidden">결과 보기</button>
@@ -105,6 +121,23 @@
         </section>
       </main>
     </div>
+
+    <dialog id="guide-modal" class="guide-modal">
+      <article class="guide-content">
+        <div class="guide-header">
+          <h2>야미야마 이용 가이드</h2>
+          <button id="close-guide-btn" class="ghost" type="button">닫기</button>
+        </div>
+        <ol>
+          <li><strong>문제 JSON 붙여넣기:</strong> 홈 화면에서 문제 세트를 입력합니다.</li>
+          <li><strong>형식 확인:</strong> "JSON 형식 가이드 보기"로 스키마를 확인하세요.</li>
+          <li><strong>프롬프트 활용:</strong> "의대 예상문제 생성 프롬프트"를 복사해 AI에 넣고 JSON을 생성합니다.</li>
+          <li><strong>채점 모드 선택:</strong> 즉시 채점/일괄 채점을 고른 뒤 문제를 시작합니다.</li>
+          <li><strong>모바일 풀이 팁:</strong> 제출 후 하단 고정 버튼으로 바로 다음 문제로 이동할 수 있습니다.</li>
+          <li><strong>오답 학습:</strong> 결과 화면에서 틀린 문제만 다시 풀어 반복 학습하세요.</li>
+        </ol>
+      </article>
+    </dialog>
 
     <script src="app.js"></script>
   </body>
