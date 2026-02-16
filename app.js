@@ -24,6 +24,8 @@ const sampleJson = [
   },
 ];
 
+const STORAGE_KEY = 'yami-yama.savedSets.v1';
+
 const state = {
   originalSet: [],
   quizSet: [],
@@ -44,9 +46,13 @@ const setupError = document.getElementById('setup-error');
 const promptTemplate = document.getElementById('prompt-template');
 const copyPromptBtn = document.getElementById('copy-prompt-btn');
 const copyFeedback = document.getElementById('copy-feedback');
+const copyJsonBtn = document.getElementById('copy-json-btn');
+const jsonCopyFeedback = document.getElementById('json-copy-feedback');
 const openGuideBtn = document.getElementById('open-guide-btn');
 const closeGuideBtn = document.getElementById('close-guide-btn');
 const guideModal = document.getElementById('guide-modal');
+const savedSetList = document.getElementById('saved-set-list');
+const refreshSavedBtn = document.getElementById('refresh-saved-btn');
 
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
@@ -109,17 +115,16 @@ A) multiple(오지선다)
 - choices는 반드시 5개.
 - 보기 문장은 모두 문장형이며, **야마에서 흔히 쓰는 보기 길이/톤/패턴을 그대로** 맞춘다.
 - 야마가 “복수정답형(옳은 것 모두/옳지 않은 것 모두)”을 쓰는 경향이면 그 비율도 따라라.
-  - 복수정답형일 때는 question에 반드시 “옳은 것을 모두 고르시오” 또는 “옳지 않은 것을 모두 고르시오”를 포함.
-- 해설(explanation)은 반드시 “왜 정답인지” + “각 보기별 O/X 근거”를 포함(야마 해설 스타일이 있으면 그 스타일도 따를 것).
+  - 복수정답형일 때는 question에 "(복수선택)"을 명시.
+  - answer는 정답 보기를 문자열 배열로 제공.
 
-B) short(단답)
-- 한 줄 답이 가능한 형태(키워드/수치/용어/기전 1문장).
-- 야마의 단답형 요구 방식(예: ‘용어만 쓰시오’, ‘수치만 쓰시오’)이 있으면 그대로 재현.
+B) short(단답형)
+- answer는 채점 가능한 핵심 키워드 1개 문자열.
+- 숫자/단위/약어는 야마 채점 스타일에 맞춰 엄격히 작성.
 
-C) essay(서술)
-- 1~3문장으로 답할 수 있게.
-- 야마의 서술형 요구 방식(키워드 포함/비교 서술/기전 서술 등)을 동일하게 재현.
-- answer는 문자열 배열(의미가 같은 표현 후보 1개 이상), explanation에 채점 기준(핵심 포인트) 포함.
+C) essay(서술형)
+- answer는 허용 가능한 모범답안 핵심 표현 여러 개 배열.
+- explanation에는 채점 기준(핵심 포인트) 포함.
 
 [출력 형식(매우 중요)]
 - 출력은 오직 JSON 배열만 출력(머리말/마크다운/코드펜스/설명 금지)
@@ -128,7 +133,7 @@ C) essay(서술)
   {
     "type": "multiple" | "short" | "essay",
     "question": "문제 텍스트",
-    "choices": ["보기1","보기2","보기3","보기4","보기5"],  // multiple일 때만
+    "choices": ["보기1","보기2","보기3","보기4","보기5"],
     "answer": "정답 문자열" | ["정답후보1","정답후보2",...],
     "explanation": "해설 텍스트"
   }
@@ -167,6 +172,148 @@ function escapeHtml(value) {
 
 function toArray(value) {
   return Array.isArray(value) ? value : [value];
+}
+
+function getSavedSets() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function setSavedSets(sets) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sets));
+}
+
+function formatDate(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+  return date.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function renderSavedSets() {
+  const sets = getSavedSets();
+  savedSetList.innerHTML = '';
+
+  if (sets.length === 0) {
+    savedSetList.innerHTML = '<p class="empty-saved">저장된 세트가 아직 없어요.</p>';
+    return;
+  }
+
+  sets.forEach((setItem) => {
+    const item = document.createElement('article');
+    item.className = 'saved-set-item';
+    item.innerHTML = `
+      <div class="saved-meta">
+        <strong>${escapeHtml(setItem.title || `문제 ${setItem.questionCount}개 세트`)}</strong>
+        <span>생성일: ${escapeHtml(formatDate(setItem.createdAt))}</span>
+        <span>문제 수: ${escapeHtml(setItem.questionCount)}</span>
+      </div>
+      <div class="saved-actions">
+        <button type="button" class="secondary load-set-btn" data-set-id="${escapeHtml(setItem.id)}">불러오기</button>
+        <button type="button" class="ghost delete-set-btn" data-set-id="${escapeHtml(setItem.id)}">삭제</button>
+      </div>
+    `;
+
+    savedSetList.appendChild(item);
+  });
+}
+
+function saveQuestionSet(rawJson, questionCount) {
+  const sets = getSavedSets();
+  const normalizedRaw = rawJson.trim();
+  const existing = sets.find((setItem) => setItem.rawJson.trim() === normalizedRaw);
+
+  if (existing) {
+    existing.createdAt = new Date().toISOString();
+    existing.questionCount = questionCount;
+    setSavedSets(sets);
+    renderSavedSets();
+    return;
+  }
+
+  const newSet = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    questionCount,
+    title: `문제 ${questionCount}개 세트`,
+    rawJson: normalizedRaw,
+  };
+
+  setSavedSets([newSet, ...sets].slice(0, 50));
+  renderSavedSets();
+}
+
+function extractFirstJsonArray(rawText) {
+  let inString = false;
+  let escapeNext = false;
+  let depth = 0;
+  let start = -1;
+
+  for (let index = 0; index < rawText.length; index += 1) {
+    const char = rawText[index];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === '[') {
+      if (depth === 0) {
+        start = index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === ']') {
+      if (depth > 0) {
+        depth -= 1;
+        if (depth === 0 && start !== -1) {
+          return rawText.slice(start, index + 1);
+        }
+      }
+    }
+  }
+
+  return rawText;
+}
+
+function sanitizeJsonInput(rawText) {
+  const withoutFence = rawText
+    .replace(/^\s*```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+  return extractFirstJsonArray(withoutFence).trim();
 }
 
 function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
@@ -238,7 +385,12 @@ function getCorrectAnswerDisplay(question, { useChoiceText = false } = {}) {
   return formatTextAnswer(question.acceptedAnswers);
 }
 
-function buildFeedbackHtml({ isCorrect, userAnswerDisplay, correctAnswerDisplay, explanation }) {
+function buildFeedbackHtml({
+  isCorrect,
+  userAnswerDisplay,
+  correctAnswerDisplay,
+  explanation,
+}) {
   const answerTitle = isCorrect ? '정답입니다!' : '오답입니다.';
   return `
     <div class="feedback-title"><strong>${answerTitle}</strong></div>
@@ -249,12 +401,14 @@ function buildFeedbackHtml({ isCorrect, userAnswerDisplay, correctAnswerDisplay,
 }
 
 function parseQuestions(rawText) {
-  const parsed = JSON.parse(rawText);
+  const sanitizedJsonText = sanitizeJsonInput(rawText);
+  const parsed = JSON.parse(sanitizedJsonText);
+
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error('JSON은 비어있지 않은 배열이어야 합니다.');
   }
 
-  return parsed.map((item, index) => {
+  const questions = parsed.map((item, index) => {
     if (!['multiple', 'short', 'essay'].includes(item.type)) {
       throw new Error(
         `${index + 1}번 문제의 type은 multiple, short, essay 중 하나여야 합니다.`,
@@ -302,6 +456,8 @@ function parseQuestions(rawText) {
       explanation: item.explanation || '해설이 제공되지 않았습니다.',
     };
   });
+
+  return { questions, sanitizedJsonText };
 }
 
 function getCurrentQuestion() {
@@ -361,9 +517,7 @@ function openResult({ replace = false } = {}) {
 
 function renderQuestion() {
   const q = getCurrentQuestion();
-  progressText.textContent = `${state.currentIndex + 1} / ${
-    state.quizSet.length
-  }`;
+  progressText.textContent = `${state.currentIndex + 1} / ${state.quizSet.length}`;
   modeBadge.textContent =
     state.reviewMode === 'immediate' ? '즉시 채점 모드' : '일괄 채점 모드';
 
@@ -540,9 +694,13 @@ function getUserAnswerDisplay(userAnswer, question) {
       if (!Array.isArray(userAnswer) || userAnswer.length === 0) {
         return '선택 없음';
       }
-      return formatMultipleAnswer([...userAnswer].sort((a, b) => a - b), question.choices, {
-        useChoiceText: true,
-      });
+      return formatMultipleAnswer(
+        [...userAnswer].sort((a, b) => a - b),
+        question.choices,
+        {
+          useChoiceText: true,
+        },
+      );
     }
 
     if (typeof userAnswer !== 'number') {
@@ -710,10 +868,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
   setupError.textContent = '';
 
   try {
-    const questions = parseQuestions(jsonInput.value);
+    const { questions, sanitizedJsonText } = parseQuestions(jsonInput.value);
+    jsonInput.value = sanitizedJsonText;
+    saveQuestionSet(sanitizedJsonText, questions.length);
     state.originalSet = questions;
-    const mode = document.querySelector('input[name="review-mode"]:checked')
-      .value;
+    const mode = document.querySelector('input[name="review-mode"]:checked').value;
     state.reviewMode = mode;
     state.round = 1;
     startQuiz([...state.originalSet]);
@@ -757,10 +916,50 @@ copyPromptBtn?.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(medicalPromptTemplate);
     copyFeedback.textContent = '프롬프트가 복사되었어요.';
-  } catch (error) {
+  } catch {
     copyFeedback.textContent = '복사에 실패했어요. 직접 선택해서 복사해주세요.';
   }
 });
+
+copyJsonBtn?.addEventListener('click', async () => {
+  jsonCopyFeedback.textContent = '';
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(sampleJson, null, 2));
+    jsonCopyFeedback.textContent = '예시 JSON이 복사되었어요.';
+  } catch {
+    jsonCopyFeedback.textContent = '복사에 실패했어요. 직접 선택해서 복사해주세요.';
+  }
+});
+
+savedSetList?.addEventListener('click', (event) => {
+  const button = event.target.closest('button');
+  if (!button) {
+    return;
+  }
+
+  const setId = button.dataset.setId;
+  const sets = getSavedSets();
+  const selected = sets.find((setItem) => setItem.id === setId);
+  if (!selected) {
+    return;
+  }
+
+  if (button.classList.contains('load-set-btn')) {
+    jsonInput.value = selected.rawJson;
+    setupError.textContent = '저장된 세트를 불러왔어요. 바로 문제 시작을 누르면 됩니다.';
+    jsonInput.focus();
+    jsonInput.setSelectionRange(0, 0);
+    return;
+  }
+
+  if (button.classList.contains('delete-set-btn')) {
+    const nextSets = sets.filter((setItem) => setItem.id !== setId);
+    setSavedSets(nextSets);
+    renderSavedSets();
+  }
+});
+
+refreshSavedBtn?.addEventListener('click', renderSavedSets);
 
 openGuideBtn?.addEventListener('click', () => {
   if (typeof guideModal.showModal === 'function') {
@@ -783,4 +982,6 @@ window.addEventListener('hashchange', applyRouteFromHash);
 if (!window.location.hash) {
   setRoute('#/setup', { replace: true });
 }
+
+renderSavedSets();
 applyRouteFromHash();
