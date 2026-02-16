@@ -15,6 +15,13 @@ const sampleJson = [
     explanation:
       '너비가 있는 블록 요소의 좌우 마진을 auto로 설정하면 가로 중앙 정렬됩니다.',
   },
+  {
+    type: 'essay',
+    question: '웹 접근성이 중요한 이유를 한 줄로 설명해보세요.',
+    answer: ['모든 사용자가 서비스에 접근하고 이용할 수 있어야 하기 때문'],
+    explanation:
+      '서술형은 예시 정답과 동일한 의미를 입력하면 됩니다. 정답 후보를 여러 개 넣어둘 수 있습니다.',
+  },
 ];
 
 const state = {
@@ -24,6 +31,7 @@ const state = {
   currentIndex: 0,
   reviewMode: 'immediate',
   round: 1,
+  currentScreen: 'setup',
 };
 
 const setupScreen = document.getElementById('setup-screen');
@@ -128,7 +136,7 @@ function formatMultipleAnswer(indexes) {
   return indexes.map((idx) => `${idx + 1}번`).join(', ');
 }
 
-function formatShortAnswer(answers) {
+function formatTextAnswer(answers) {
   return answers.map((answer) => String(answer)).join(' / ');
 }
 
@@ -136,7 +144,7 @@ function getCorrectAnswerDisplay(question) {
   if (question.type === 'multiple') {
     return formatMultipleAnswer(question.correctIndexes);
   }
-  return formatShortAnswer(question.acceptedAnswers);
+  return formatTextAnswer(question.acceptedAnswers);
 }
 
 function parseQuestions(rawText) {
@@ -146,9 +154,9 @@ function parseQuestions(rawText) {
   }
 
   return parsed.map((item, index) => {
-    if (!['multiple', 'short'].includes(item.type)) {
+    if (!['multiple', 'short', 'essay'].includes(item.type)) {
       throw new Error(
-        `${index + 1}번 문제의 type은 multiple 또는 short 이어야 합니다.`,
+        `${index + 1}번 문제의 type은 multiple, short, essay 중 하나여야 합니다.`,
       );
     }
     if (!item.question || item.answer === undefined || item.answer === null) {
@@ -181,7 +189,8 @@ function parseQuestions(rawText) {
       .map((answer) => String(answer))
       .filter((answer) => answer.trim());
     if (acceptedAnswers.length === 0) {
-      throw new Error(`${index + 1}번 주관식 문제의 answer가 비어 있습니다.`);
+      const label = item.type === 'essay' ? '서술형' : '주관식';
+      throw new Error(`${index + 1}번 ${label} 문제의 answer가 비어 있습니다.`);
     }
 
     return {
@@ -198,6 +207,53 @@ function getCurrentQuestion() {
   return state.quizSet[state.currentIndex];
 }
 
+function getExamHash(index = state.currentIndex) {
+  return `#/exam/${index + 1}`;
+}
+
+function setRoute(hash, { replace = false } = {}) {
+  if (window.location.hash === hash) {
+    return;
+  }
+
+  if (replace) {
+    history.replaceState(null, '', hash);
+    return;
+  }
+
+  window.location.hash = hash;
+}
+
+function openSetup({ replace = false } = {}) {
+  state.currentScreen = 'setup';
+  showScreen(setupScreen);
+  setRoute('#/setup', { replace });
+}
+
+function openExam({ replace = false } = {}) {
+  if (state.quizSet.length === 0) {
+    openSetup({ replace: true });
+    return;
+  }
+
+  state.currentScreen = 'exam';
+  showScreen(examScreen);
+  renderQuestion();
+  setRoute(getExamHash(), { replace });
+}
+
+function openResult({ replace = false } = {}) {
+  if (state.answers.length === 0 || state.answers.some((answer) => !answer)) {
+    openSetup({ replace: true });
+    return;
+  }
+
+  state.currentScreen = 'result';
+  showScreen(resultScreen);
+  renderResultContent();
+  setRoute('#/result', { replace });
+}
+
 function renderQuestion() {
   const q = getCurrentQuestion();
   progressText.textContent = `${state.currentIndex + 1} / ${
@@ -205,7 +261,10 @@ function renderQuestion() {
   }`;
   modeBadge.textContent =
     state.reviewMode === 'immediate' ? '즉시 채점 모드' : '일괄 채점 모드';
-  questionTitle.textContent = `문제 ${state.currentIndex + 1}`;
+
+  const typeLabel =
+    q.type === 'multiple' ? '객관식' : q.type === 'short' ? '주관식' : '서술형';
+  questionTitle.textContent = `문제 ${state.currentIndex + 1} (${typeLabel})`;
   questionText.textContent = q.question;
 
   feedbackBox.className = 'feedback hidden';
@@ -221,16 +280,110 @@ function renderQuestion() {
     answerArea.innerHTML = q.choices
       .map(
         (choice, idx) => `
-        <label class="choice">
+        <label class="choice" data-choice-index="${idx}">
           <input type="${inputType}" name="choice" value="${idx}" />
           ${idx + 1}. ${escapeHtml(choice)}
         </label>
       `,
       )
       .join('');
+  } else if (q.type === 'short') {
+    answerArea.innerHTML =
+      '<input class="short-input" type="text" id="text-answer" placeholder="정답을 입력하세요" />';
   } else {
     answerArea.innerHTML =
-      '<input class="short-input" type="text" id="short-answer" placeholder="정답을 입력하세요" />';
+      '<textarea class="essay-input" id="text-answer" placeholder="서술형 답안을 입력하세요"></textarea>';
+  }
+
+  const existing = state.answers[state.currentIndex];
+  if (existing) {
+    applySavedAnswer(existing, q);
+  }
+}
+
+function paintChoiceResult(question, userAnswer) {
+  const labels = Array.from(answerArea.querySelectorAll('.choice'));
+
+  labels.forEach((label) => {
+    const choiceIndex = Number(label.dataset.choiceIndex);
+    const isCorrectChoice = question.correctIndexes.includes(choiceIndex);
+    const isSelectedByUser = question.isMultiAnswer
+      ? Array.isArray(userAnswer) && userAnswer.includes(choiceIndex)
+      : userAnswer === choiceIndex;
+
+    label.classList.remove('correct-choice', 'wrong-choice');
+    if (isCorrectChoice) {
+      label.classList.add('correct-choice');
+    } else if (isSelectedByUser) {
+      label.classList.add('wrong-choice');
+    }
+
+    const input = label.querySelector('input');
+    input.disabled = true;
+  });
+}
+
+function paintTextResult(isCorrect) {
+  const input = document.getElementById('text-answer');
+  if (!input) {
+    return;
+  }
+
+  input.classList.remove('text-correct', 'text-wrong');
+  input.classList.add(isCorrect ? 'text-correct' : 'text-wrong');
+  input.disabled = true;
+}
+
+function applySavedAnswer(answerRecord, question) {
+  if (question.type === 'multiple') {
+    const selectedIndexes = question.isMultiAnswer
+      ? answerRecord.rawUserAnswer
+      : [answerRecord.rawUserAnswer];
+
+    selectedIndexes.forEach((idx) => {
+      const input = answerArea.querySelector(`input[value="${idx}"]`);
+      if (input) {
+        input.checked = true;
+      }
+    });
+
+    if (state.reviewMode === 'immediate') {
+      paintChoiceResult(question, answerRecord.rawUserAnswer);
+      feedbackBox.className = `feedback ${
+        answerRecord.isCorrect ? 'correct' : 'incorrect'
+      }`;
+      feedbackBox.innerHTML = `
+        <strong>${answerRecord.isCorrect ? '정답입니다!' : '오답입니다.'}</strong><br/>
+        정답: ${escapeHtml(answerRecord.correctAnswerDisplay)}<br/>
+        해설: ${escapeHtml(question.explanation)}
+      `;
+    }
+  } else {
+    const input = document.getElementById('text-answer');
+    if (input) {
+      input.value = answerRecord.rawUserAnswer;
+      input.disabled = true;
+    }
+
+    if (state.reviewMode === 'immediate') {
+      paintTextResult(answerRecord.isCorrect);
+      feedbackBox.className = `feedback ${
+        answerRecord.isCorrect ? 'correct' : 'incorrect'
+      }`;
+      feedbackBox.innerHTML = `
+        <strong>${answerRecord.isCorrect ? '정답입니다!' : '오답입니다.'}</strong><br/>
+        정답: ${escapeHtml(answerRecord.correctAnswerDisplay)}<br/>
+        해설: ${escapeHtml(question.explanation)}
+      `;
+    }
+  }
+
+  submitBtn.disabled = true;
+  const isLast = state.currentIndex === state.quizSet.length - 1;
+  if (isLast) {
+    finishBtn.classList.remove('hidden');
+  } else {
+    nextBtn.classList.remove('hidden');
   }
 }
 
@@ -247,7 +400,7 @@ function collectUserAnswer() {
     return selected ? Number(selected.value) : null;
   }
 
-  const input = document.getElementById('short-answer');
+  const input = document.getElementById('text-answer');
   return input ? input.value : '';
 }
 
@@ -313,6 +466,7 @@ function handleSubmit() {
   const correctAnswerDisplay = getCorrectAnswerDisplay(question);
 
   state.answers[state.currentIndex] = {
+    rawUserAnswer: Array.isArray(userAnswer) ? [...userAnswer] : userAnswer,
     userAnswerDisplay: getUserAnswerDisplay(userAnswer, question),
     isCorrect,
     correctAnswerDisplay,
@@ -327,6 +481,12 @@ function handleSubmit() {
       정답: ${escapeHtml(correctAnswerDisplay)}<br/>
       해설: ${escapeHtml(question.explanation)}
     `;
+
+    if (question.type === 'multiple') {
+      paintChoiceResult(question, userAnswer);
+    } else {
+      paintTextResult(isCorrect);
+    }
   }
 
   submitBtn.disabled = true;
@@ -340,12 +500,10 @@ function handleSubmit() {
 
 function goNext() {
   state.currentIndex += 1;
-  renderQuestion();
+  openExam();
 }
 
-function renderResult() {
-  showScreen(resultScreen);
-
+function renderResultContent() {
   const total = state.answers.length;
   const correct = state.answers.filter((a) => a.isCorrect).length;
   const wrong = total - correct;
@@ -395,9 +553,41 @@ function startQuiz(questions) {
   state.quizSet = questions;
   state.answers = new Array(questions.length);
   state.currentIndex = 0;
+  openExam();
+}
 
-  showScreen(examScreen);
-  renderQuestion();
+function applyRouteFromHash() {
+  const hash = window.location.hash || '#/setup';
+  const examMatch = hash.match(/^#\/exam\/(\d+)$/);
+
+  if (hash === '#/setup') {
+    openSetup({ replace: true });
+    return;
+  }
+
+  if (examMatch) {
+    if (state.quizSet.length === 0) {
+      openSetup({ replace: true });
+      return;
+    }
+
+    const requested = Number(examMatch[1]) - 1;
+    if (!Number.isInteger(requested)) {
+      openExam({ replace: true });
+      return;
+    }
+
+    state.currentIndex = Math.max(0, Math.min(requested, state.quizSet.length - 1));
+    openExam({ replace: true });
+    return;
+  }
+
+  if (hash === '#/result') {
+    openResult({ replace: true });
+    return;
+  }
+
+  openSetup({ replace: true });
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
@@ -418,7 +608,9 @@ document.getElementById('start-btn').addEventListener('click', () => {
 
 submitBtn.addEventListener('click', handleSubmit);
 nextBtn.addEventListener('click', goNext);
-finishBtn.addEventListener('click', renderResult);
+finishBtn.addEventListener('click', () => {
+  openResult();
+});
 
 document.getElementById('retry-all-btn').addEventListener('click', () => {
   state.round += 1;
@@ -441,5 +633,12 @@ document.getElementById('retry-wrong-btn').addEventListener('click', () => {
 });
 
 document.getElementById('go-home-btn').addEventListener('click', () => {
-  showScreen(setupScreen);
+  openSetup();
 });
+
+window.addEventListener('hashchange', applyRouteFromHash);
+
+if (!window.location.hash) {
+  setRoute('#/setup', { replace: true });
+}
+applyRouteFromHash();
