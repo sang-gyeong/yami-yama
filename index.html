@@ -4,46 +4,48 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>야미야마 문제 트레이너 🍙✨</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="top-header candy-panel">
+      <header class="top-header">
         <h1>야미야마 문제 트레이너 🍙✨</h1>
-        <p>달콤하게 몰입하고, 화끈하게 점수 올리자! 🍭🔥</p>
+        <p>오늘도 한 문제씩 씹어 먹자! 너의 실력은 지금 더 강해지는 중 💪🌟</p>
       </header>
 
       <main>
-        <section id="setup-screen" class="card candy-panel screen active">
+        <section id="setup-screen" class="card screen active">
           <h2>문제 세트 준비</h2>
           <p class="help-text">
             아래에 문제 JSON을 붙여넣으세요. 객관식(<code>type: "multiple"</code
-            >), 주관식(<code>type: "short"</code>), 서술형(<code
-              >type: "essay"</code
-            >)을 모두 지원합니다.
+            >), 주관식(<code>type: "short"</code>)을 모두 지원합니다.
           </p>
-          <textarea id="json-input"></textarea>
+          <textarea
+            id="json-input"
+            placeholder='예시: [{"type":"multiple","question":"...","choices":["A","B"],"answer":"A","explanation":"..."}]'
+          ></textarea>
 
           <details class="format-guide">
             <summary>JSON 형식 가이드 보기</summary>
-            <div class="guide-actions">
-              <button id="copy-guide-btn" type="button" class="secondary">
-                가이드 복사
-              </button>
-              <span
-                id="copy-guide-status"
-                class="copy-status"
-                aria-live="polite"
-              ></span>
-            </div>
             <pre id="json-example"></pre>
           </details>
+
+          <div class="options">
+            <h3>정답/해설 확인 시점</h3>
+            <label>
+              <input
+                type="radio"
+                name="review-mode"
+                value="immediate"
+                checked
+              />
+              문제를 풀 때마다 바로 확인
+            </label>
+            <label>
+              <input type="radio" name="review-mode" value="end" />
+              한 세트 전부 푼 뒤 몰아서 확인
+            </label>
+          </div>
 
           <div class="actions">
             <button id="start-btn" class="primary">문제 시작</button>
@@ -51,11 +53,7 @@
           <p id="setup-error" class="error"></p>
         </section>
 
-        <section
-          id="exam-screen"
-          class="card candy-panel screen"
-          aria-live="polite"
-        >
+        <section id="exam-screen" class="card screen" aria-live="polite">
           <div class="exam-header">
             <div>
               <h2>시험 진행</h2>
@@ -64,18 +62,10 @@
             <div id="mode-badge" class="badge"></div>
           </div>
 
-          <div class="exam-tools">
-            <label for="review-mode-select">채점 확인 방식</label>
-            <select id="review-mode-select">
-              <option value="immediate">문제마다 바로 정답/해설 보기</option>
-              <option value="end">한 세트 끝나고 몰아서 보기</option>
-            </select>
-          </div>
-
           <article class="question-box">
             <h3 id="question-title"></h3>
             <p id="question-text"></p>
-            <form id="answer-form" onsubmit="return false;">
+            <form id="answer-form">
               <div id="answer-area"></div>
             </form>
           </article>
@@ -89,11 +79,7 @@
           </div>
         </section>
 
-        <section
-          id="result-screen"
-          class="card candy-panel screen"
-          aria-live="polite"
-        >
+        <section id="result-screen" class="card screen" aria-live="polite">
           <h2>시험 결과</h2>
           <div id="result-summary" class="summary"></div>
           <div id="motivation" class="motivation"></div>
