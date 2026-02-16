@@ -15,7 +15,7 @@ const sampleJson = [
   {
     type: "essay",
     question: "서술형: 오늘 공부한 내용을 2~3문장으로 요약해보세요.",
-    answer: "핵심 개념을 짧고 명확하게 정리합니다.",
+    answer: ["핵심 개념을 짧고 명확하게 정리합니다.", "핵심 개념 요약"],
     explanation: "서술형은 제시된 핵심 표현과 의미가 일치하는지 확인해보세요."
   }
 ];
@@ -27,13 +27,14 @@ const state = {
   quizSet: [],
   answers: [],
   currentIndex: 0,
-  reviewMode: "immediate",
-  round: 1
+  reviewMode: "immediate"
 };
 
-const setupScreen = document.getElementById("setup-screen");
-const examScreen = document.getElementById("exam-screen");
-const resultScreen = document.getElementById("result-screen");
+const routes = {
+  setup: document.getElementById("setup-screen"),
+  exam: document.getElementById("exam-screen"),
+  result: document.getElementById("result-screen")
+};
 
 const jsonInput = document.getElementById("json-input");
 const jsonExample = document.getElementById("json-example");
@@ -43,6 +44,7 @@ const copyGuideStatus = document.getElementById("copy-guide-status");
 
 const progressText = document.getElementById("progress-text");
 const modeBadge = document.getElementById("mode-badge");
+const reviewModeSelect = document.getElementById("review-mode-select");
 const questionTitle = document.getElementById("question-title");
 const questionText = document.getElementById("question-text");
 const answerArea = document.getElementById("answer-area");
@@ -59,11 +61,6 @@ const motivation = document.getElementById("motivation");
 jsonExample.textContent = jsonGuideText;
 jsonInput.placeholder = jsonGuideText;
 
-function showScreen(screen) {
-  [setupScreen, examScreen, resultScreen].forEach((el) => el.classList.remove("active"));
-  screen.classList.add("active");
-}
-
 function normalize(value) {
   return String(value).trim().toLowerCase();
 }
@@ -79,6 +76,17 @@ function escapeHtml(value) {
 
 function toArray(value) {
   return Array.isArray(value) ? value : [value];
+}
+
+function normalizeType(type) {
+  const map = {
+    객관식: "multiple",
+    주관식: "short",
+    서술형: "essay",
+    descriptive: "essay"
+  };
+
+  return map[type] || type;
 }
 
 function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
@@ -106,9 +114,7 @@ function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
 
     const byTextIndex = choices.findIndex((choice) => normalize(choice) === normalize(asText));
     if (byTextIndex === -1) {
-      throw new Error(
-        `${questionIndex + 1}번 객관식 문제의 answer("${asText}")가 choices에 존재하지 않습니다.`
-      );
+      throw new Error(`${questionIndex + 1}번 객관식 문제의 answer("${asText}")가 choices에 존재하지 않습니다.`);
     }
 
     return byTextIndex;
@@ -139,21 +145,22 @@ function parseQuestions(rawText) {
   }
 
   return parsed.map((item, index) => {
-    if (!["multiple", "short", "essay"].includes(item.type)) {
+    const normalizedType = normalizeType(item.type);
+    if (!["multiple", "short", "essay"].includes(normalizedType)) {
       throw new Error(`${index + 1}번 문제의 type은 multiple, short 또는 essay 이어야 합니다.`);
     }
     if (!item.question || item.answer === undefined || item.answer === null) {
       throw new Error(`${index + 1}번 문제에 question 또는 answer가 없습니다.`);
     }
 
-    if (item.type === "multiple") {
+    if (normalizedType === "multiple") {
       if (!Array.isArray(item.choices) || item.choices.length < 2) {
         throw new Error(`${index + 1}번 객관식 문제는 choices 배열(2개 이상)이 필요합니다.`);
       }
 
       const correctIndexes = parseMultipleAnswerIndexes(item.answer, item.choices, index);
       return {
-        type: item.type,
+        type: normalizedType,
         question: item.question,
         choices: item.choices,
         correctIndexes,
@@ -162,19 +169,53 @@ function parseQuestions(rawText) {
       };
     }
 
-    const acceptedAnswers = toArray(item.answer).map((answer) => String(answer)).filter((answer) => answer.trim());
+    const acceptedAnswers = toArray(item.answer)
+      .map((answer) => String(answer).trim())
+      .filter(Boolean);
+
     if (acceptedAnswers.length === 0) {
-      throw new Error(`${index + 1}번 주관식 문제의 answer가 비어 있습니다.`);
+      throw new Error(`${index + 1}번 ${normalizedType === "essay" ? "서술형" : "주관식"} 문제의 answer가 비어 있습니다.`);
     }
 
     return {
-      type: item.type,
+      type: normalizedType,
       question: item.question,
       choices: [],
       acceptedAnswers,
       explanation: item.explanation || "해설이 제공되지 않았습니다."
     };
   });
+}
+
+function syncReviewMode(mode) {
+  state.reviewMode = mode;
+  reviewModeSelect.value = mode;
+}
+
+function navigateTo(route, useReplace = false) {
+  Object.values(routes).forEach((screen) => screen.classList.remove("active"));
+  routes[route].classList.add("active");
+
+  const stateData = { route };
+  if (useReplace) {
+    history.replaceState(stateData, "", `#${route}`);
+  } else {
+    history.pushState(stateData, "", `#${route}`);
+  }
+}
+
+function goToRoute(route, useReplace = false) {
+  if (route === "exam" && state.quizSet.length === 0) {
+    navigateTo("setup", useReplace);
+    return;
+  }
+
+  if (route === "result" && state.answers.length === 0) {
+    navigateTo("setup", useReplace);
+    return;
+  }
+
+  navigateTo(route, useReplace);
 }
 
 function getCurrentQuestion() {
@@ -231,6 +272,11 @@ function collectUserAnswer() {
     return selected ? Number(selected.value) : null;
   }
 
+  if (q.type === "essay") {
+    const input = document.getElementById("essay-answer");
+    return input ? input.value : "";
+  }
+
   const input = document.getElementById("short-answer");
   return input ? input.value : "";
 }
@@ -269,6 +315,17 @@ function getUserAnswerDisplay(userAnswer, question) {
   return userAnswer;
 }
 
+function renderFeedback(isCorrect, correctAnswerDisplay, explanation) {
+  feedbackBox.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
+  feedbackBox.innerHTML = `
+    <div class="feedback-status ${isCorrect ? "status-correct" : "status-incorrect"}">
+      ${isCorrect ? "✅ 정답입니다!" : "❌ 오답입니다."}
+    </div>
+    <div class="feedback-line answer-line"><strong>정답:</strong> ${escapeHtml(correctAnswerDisplay)}</div>
+    <div class="feedback-line explanation-line"><strong>해설:</strong> ${escapeHtml(explanation)}</div>
+  `;
+}
+
 function handleSubmit() {
   const question = getCurrentQuestion();
   const userAnswer = collectUserAnswer();
@@ -298,12 +355,7 @@ function handleSubmit() {
   };
 
   if (state.reviewMode === "immediate") {
-    feedbackBox.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
-    feedbackBox.innerHTML = `
-      <strong>${isCorrect ? "정답입니다!" : "오답입니다."}</strong><br/>
-      정답: ${escapeHtml(correctAnswerDisplay)}<br/>
-      해설: ${escapeHtml(question.explanation)}
-    `;
+    renderFeedback(isCorrect, correctAnswerDisplay, question.explanation);
   }
 
   submitBtn.disabled = true;
@@ -320,8 +372,10 @@ function goNext() {
   renderQuestion();
 }
 
-function renderResult() {
-  showScreen(resultScreen);
+function renderResult(skipRouteChange = false) {
+  if (!skipRouteChange) {
+    goToRoute("result");
+  }
 
   const total = state.answers.length;
   const correct = state.answers.filter((a) => a.isCorrect).length;
@@ -340,25 +394,23 @@ function renderResult() {
 
     const explanationText =
       state.reviewMode === "end" || !item.isCorrect
-        ? `<div><strong>정답:</strong> ${escapeHtml(item.correctAnswerDisplay)}</div><div><strong>해설:</strong> ${escapeHtml(item.explanation)}</div>`
+        ? `<div class="feedback-line answer-line"><strong>정답:</strong> ${escapeHtml(item.correctAnswerDisplay)}</div><div class="feedback-line explanation-line"><strong>해설:</strong> ${escapeHtml(item.explanation)}</div>`
         : "";
 
     resultItem.innerHTML = `
       <div><strong>${idx + 1}. ${escapeHtml(item.question)}</strong></div>
       <div>내 답: ${escapeHtml(item.userAnswerDisplay)}</div>
-      <div>${item.isCorrect ? "✅ 정답" : "❌ 오답"}</div>
+      <div class="result-status ${item.isCorrect ? "status-correct" : "status-incorrect"}">${item.isCorrect ? "✅ 정답" : "❌ 오답"}</div>
       ${explanationText}
     `;
 
     resultList.appendChild(resultItem);
   });
 
-  if (wrong > 0) {
-    motivation.textContent =
-      "지금이 성장 타이밍! 틀린 문제를 바로 다시 잡으면 실력이 폭발적으로 올라갑니다. 한 번 더 달려서 점수 갈아치워봐요! 🔥";
-  } else {
-    motivation.textContent = "와우, 전부 정답! 이 집중력 그대로 다음 세트도 압도해봐요. 오늘 폼 미쳤다! ⚡";
-  }
+  motivation.textContent =
+    wrong > 0
+      ? "지금이 성장 타이밍! 틀린 문제를 바로 다시 잡으면 실력이 폭발적으로 올라갑니다. 한 번 더 달려서 점수 갈아치워봐요! 🔥"
+      : "와우, 전부 정답! 이 집중력 그대로 다음 세트도 압도해봐요. 오늘 폼 미쳤다! ⚡";
 
   document.getElementById("retry-wrong-btn").disabled = wrong === 0;
 }
@@ -368,7 +420,7 @@ function startQuiz(questions) {
   state.answers = new Array(questions.length);
   state.currentIndex = 0;
 
-  showScreen(examScreen);
+  goToRoute("exam");
   renderQuestion();
 }
 
@@ -391,18 +443,45 @@ async function copyGuideToClipboard() {
   }, 1500);
 }
 
+function handlePopState() {
+  const route = location.hash.replace("#", "") || "setup";
+  if (route === "exam") {
+    goToRoute("exam", true);
+    if (state.quizSet.length > 0) {
+      renderQuestion();
+    }
+    return;
+  }
+
+  if (route === "result") {
+    if (state.answers.length > 0) {
+      goToRoute("result", true);
+      renderResult(true);
+    } else {
+      goToRoute("setup", true);
+    }
+    return;
+  }
+
+  goToRoute("setup", true);
+}
+
 document.getElementById("start-btn").addEventListener("click", () => {
   setupError.textContent = "";
 
   try {
     const questions = parseQuestions(jsonInput.value);
     state.originalSet = questions;
-    const mode = document.querySelector('input[name="review-mode"]:checked').value;
-    state.reviewMode = mode;
-    state.round = 1;
     startQuiz([...state.originalSet]);
   } catch (error) {
     setupError.textContent = `문제 세트 로드 실패: ${error.message}`;
+  }
+});
+
+reviewModeSelect.addEventListener("change", (event) => {
+  syncReviewMode(event.target.value);
+  if (routes.exam.classList.contains("active") && state.quizSet.length > 0) {
+    renderQuestion();
   }
 });
 
@@ -412,7 +491,6 @@ nextBtn.addEventListener("click", goNext);
 finishBtn.addEventListener("click", renderResult);
 
 document.getElementById("retry-all-btn").addEventListener("click", () => {
-  state.round += 1;
   startQuiz([...state.originalSet]);
 });
 
@@ -427,10 +505,13 @@ document.getElementById("retry-wrong-btn").addEventListener("click", () => {
     return;
   }
 
-  state.round += 1;
   startQuiz(wrongQuestions);
 });
 
 document.getElementById("go-home-btn").addEventListener("click", () => {
-  showScreen(setupScreen);
+  goToRoute("setup");
 });
+
+window.addEventListener("popstate", handlePopState);
+syncReviewMode("immediate");
+handlePopState();
