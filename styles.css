@@ -19,7 +19,7 @@
 
 body {
   margin: 0;
-  font-family: 'Nunito', 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: 'Song Myung', serif;
   background: radial-gradient(
     circle at top,
     #ffeefd 0%,
@@ -27,6 +27,20 @@ body {
     var(--bg-soft) 100%
   );
   color: var(--text);
+}
+
+
+.song-myung-regular {
+  font-family: 'Song Myung', serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
 }
 
 .app-shell {
@@ -79,7 +93,9 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px;
-  font: 14px/1.5 'D2Coding', 'Consolas', monospace;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
   background: #fffaff;
 }
 
@@ -168,6 +184,39 @@ pre {
   padding: 11px;
   font-size: 1rem;
   background: #fffaff;
+}
+
+
+.essay-input {
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 11px;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: #fffaff;
+  resize: vertical;
+}
+
+.choice.correct-choice {
+  border-color: #9fe6c2;
+  background: #ecfff5;
+}
+
+.choice.wrong-choice {
+  border-color: #ffb8cf;
+  background: #fff0f6;
+}
+
+.text-correct {
+  border-color: #9fe6c2;
+  background: #ecfff5;
+}
+
+.text-wrong {
+  border-color: #ffb8cf;
+  background: #fff0f6;
 }
 
 .feedback {
