@@ -35,6 +35,11 @@
             id="json-input"
             placeholder='예시: [{"type":"multiple","question":"...","choices":["A","B"],"answer":"A","explanation":"..."}]'
           ></textarea>
+          <div class="save-set-controls">
+            <button id="save-set-btn" class="secondary" type="button">
+              문제 저장
+            </button>
+          </div>
 
           <details class="format-guide">
             <summary>JSON 형식 가이드 보기</summary>
@@ -63,7 +68,7 @@
               <h3>저장된 문제 세트</h3>
               <button id="refresh-saved-btn" class="ghost" type="button">새로고침</button>
             </div>
-            <p class="help-text compact">생성했던 세트는 서버에 자동 저장되며, 클릭해서 바로 다시 불러와 풀 수 있어요.</p>
+            <p class="help-text compact">저장 버튼을 눌러 저장한 세트가 서버에 반영되며, 클릭해서 바로 다시 불러와 풀 수 있어요.</p>
 
 
             <div id="saved-set-list" class="saved-set-list"></div>
@@ -136,6 +141,24 @@
         </section>
       </main>
     </div>
+
+
+    <dialog id="save-set-modal" class="save-set-modal">
+      <article class="save-set-modal-content">
+        <h3>문제 세트 저장</h3>
+        <p class="help-text compact">제목을 입력하지 않으면 기본 제목으로 저장돼요.</p>
+        <input
+          id="save-set-modal-input"
+          type="text"
+          placeholder="문제 n개 세트"
+          aria-label="저장할 문제 세트 제목"
+        />
+        <div class="actions">
+          <button id="save-set-confirm-btn" class="primary" type="button">완료</button>
+          <button id="save-set-cancel-btn" class="ghost" type="button">취소</button>
+        </div>
+      </article>
+    </dialog>
 
     <dialog id="guide-modal" class="guide-modal">
       <article class="guide-content">

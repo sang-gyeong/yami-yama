@@ -35,6 +35,7 @@ const state = {
   reviewMode: 'immediate',
   round: 1,
   currentScreen: 'setup',
+  pendingSavePayload: null,
 };
 
 const setupScreen = document.getElementById('setup-screen');
@@ -42,6 +43,11 @@ const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const jsonInput = document.getElementById('json-input');
+const saveSetBtn = document.getElementById('save-set-btn');
+const saveSetModal = document.getElementById('save-set-modal');
+const saveSetModalInput = document.getElementById('save-set-modal-input');
+const saveSetConfirmBtn = document.getElementById('save-set-confirm-btn');
+const saveSetCancelBtn = document.getElementById('save-set-cancel-btn');
 const jsonExample = document.getElementById('json-example');
 const setupError = document.getElementById('setup-error');
 const promptTemplate = document.getElementById('prompt-template');
@@ -314,7 +320,11 @@ function renderSavedSets() {
   });
 }
 
-function saveQuestionSet(rawJson, questionCount) {
+function getDefaultSetTitle(questionCount) {
+  return `문제 ${questionCount}개 세트`;
+}
+
+function saveQuestionSet(rawJson, questionCount, titleInput = '') {
   const sets = getSavedSets();
   const normalizedRaw = rawJson.trim();
   const existing = sets.find((setItem) => setItem.rawJson.trim() === normalizedRaw);
@@ -322,9 +332,7 @@ function saveQuestionSet(rawJson, questionCount) {
   if (existing) {
     existing.createdAt = new Date().toISOString();
     existing.questionCount = questionCount;
-    if (!existing.title) {
-      existing.title = `문제 ${questionCount}개 세트`;
-    }
+    existing.title = titleInput.trim() || existing.title || getDefaultSetTitle(questionCount);
     setSavedSets(sets);
     renderSavedSets();
     void syncLocalSetsToRemote('중복 세트 갱신');
@@ -335,7 +343,7 @@ function saveQuestionSet(rawJson, questionCount) {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
     questionCount,
-    title: `문제 ${questionCount}개 세트`,
+    title: titleInput.trim() || getDefaultSetTitle(questionCount),
     rawJson: normalizedRaw,
   };
 
@@ -949,13 +957,68 @@ function applyRouteFromHash() {
   openSetup({ replace: true });
 }
 
+function applySetTitlePlaceholder(questionCount) {
+  const defaultTitle = getDefaultSetTitle(questionCount);
+  if (saveSetModalInput) {
+    saveSetModalInput.placeholder = defaultTitle;
+  }
+  return defaultTitle;
+}
+
+function parseAndNormalizeInput() {
+  const { questions, sanitizedJsonText } = parseQuestions(jsonInput.value);
+  jsonInput.value = sanitizedJsonText;
+  applySetTitlePlaceholder(questions.length);
+  return { questions, sanitizedJsonText };
+}
+
+function openSaveSetModal() {
+  if (!saveSetModal || typeof saveSetModal.showModal !== 'function') {
+    return false;
+  }
+
+  saveSetModal.showModal();
+  requestAnimationFrame(() => {
+    saveSetModalInput?.focus();
+  });
+  return true;
+}
+
+function closeSaveSetModal() {
+  saveSetModal?.close();
+  if (saveSetModalInput) {
+    saveSetModalInput.value = '';
+  }
+  state.pendingSavePayload = null;
+}
+
+saveSetBtn?.addEventListener('click', () => {
+  setupError.textContent = '';
+
+  try {
+    const { questions, sanitizedJsonText } = parseAndNormalizeInput();
+    state.pendingSavePayload = {
+      questions,
+      sanitizedJsonText,
+      questionCount: questions.length,
+    };
+
+    const opened = openSaveSetModal();
+    if (!opened) {
+      saveQuestionSet(sanitizedJsonText, questions.length);
+      setupError.textContent = '문제 세트를 저장했어요.';
+      state.pendingSavePayload = null;
+    }
+  } catch (error) {
+    setupError.textContent = `문제 세트 저장 실패: ${error.message}`;
+  }
+});
+
 document.getElementById('start-btn').addEventListener('click', () => {
   setupError.textContent = '';
 
   try {
-    const { questions, sanitizedJsonText } = parseQuestions(jsonInput.value);
-    jsonInput.value = sanitizedJsonText;
-    saveQuestionSet(sanitizedJsonText, questions.length);
+    const { questions } = parseAndNormalizeInput();
     state.originalSet = questions;
     const mode = document.querySelector('input[name="review-mode"]:checked').value;
     state.reviewMode = mode;
@@ -1092,6 +1155,35 @@ guideModal?.addEventListener('click', (event) => {
   }
 });
 
+saveSetConfirmBtn?.addEventListener('click', () => {
+  const payload = state.pendingSavePayload;
+  if (!payload) {
+    closeSaveSetModal();
+    return;
+  }
+
+  const userTitle = saveSetModalInput?.value || '';
+  saveQuestionSet(payload.sanitizedJsonText, payload.questionCount, userTitle);
+  setupError.textContent = '문제 세트를 저장했어요.';
+  closeSaveSetModal();
+});
+
+saveSetCancelBtn?.addEventListener('click', () => {
+  closeSaveSetModal();
+});
+
+saveSetModal?.addEventListener('click', (event) => {
+  if (event.target === saveSetModal) {
+    closeSaveSetModal();
+  }
+});
+
+saveSetModal?.addEventListener('close', () => {
+  if (saveSetModalInput) {
+    saveSetModalInput.value = '';
+  }
+});
+
 window.addEventListener('hashchange', applyRouteFromHash);
 
 if (!window.location.hash) {
@@ -1104,6 +1196,7 @@ if (firebaseDbUrlInput) {
 }
 
 renderSavedSets();
+applySetTitlePlaceholder('n');
 
 (async () => {
   try {
