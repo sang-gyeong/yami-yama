@@ -54,6 +54,11 @@ const closeGuideBtn = document.getElementById('close-guide-btn');
 const guideModal = document.getElementById('guide-modal');
 const savedSetList = document.getElementById('saved-set-list');
 const refreshSavedBtn = document.getElementById('refresh-saved-btn');
+const firebaseDbUrlInput = document.getElementById('firebase-db-url');
+const saveRemoteConfigBtn = document.getElementById('save-remote-config-btn');
+const pushRemoteBtn = document.getElementById('push-remote-btn');
+const pullRemoteBtn = document.getElementById('pull-remote-btn');
+const remoteSyncFeedback = document.getElementById('remote-sync-feedback');
 
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
@@ -1091,6 +1096,11 @@ window.addEventListener('hashchange', applyRouteFromHash);
 
 if (!window.location.hash) {
   setRoute('#/setup', { replace: true });
+}
+
+const remoteConfig = getRemoteConfig();
+if (firebaseDbUrlInput) {
+  firebaseDbUrlInput.value = normalizeFirebaseDbUrl(remoteConfig.firebaseDbUrl);
 }
 
 renderSavedSets();
