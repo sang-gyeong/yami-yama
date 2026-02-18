@@ -110,6 +110,28 @@ textarea:focus,
   margin-bottom: 10px;
 }
 
+
+.save-set-controls {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#set-title-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+#set-title-input:focus {
+  outline: 2px solid var(--focus);
+  border-color: #a3b2ff;
+}
+
 .format-guide {
   margin-top: 12px;
   color: var(--muted);
@@ -501,5 +523,13 @@ button.ghost {
 
   #question-text {
     font-size: 1.03rem;
+  }
+}
+
+
+@media (max-width: 640px) {
+  .save-set-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
