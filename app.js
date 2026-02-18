@@ -35,6 +35,7 @@ const state = {
   reviewMode: 'immediate',
   round: 1,
   currentScreen: 'setup',
+  pendingSavePayload: null,
 };
 
 const setupScreen = document.getElementById('setup-screen');
@@ -42,8 +43,11 @@ const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const jsonInput = document.getElementById('json-input');
-const setTitleInput = document.getElementById('set-title-input');
 const saveSetBtn = document.getElementById('save-set-btn');
+const saveSetModal = document.getElementById('save-set-modal');
+const saveSetModalInput = document.getElementById('save-set-modal-input');
+const saveSetConfirmBtn = document.getElementById('save-set-confirm-btn');
+const saveSetCancelBtn = document.getElementById('save-set-cancel-btn');
 const jsonExample = document.getElementById('json-example');
 const setupError = document.getElementById('setup-error');
 const promptTemplate = document.getElementById('prompt-template');
@@ -955,8 +959,8 @@ function applyRouteFromHash() {
 
 function applySetTitlePlaceholder(questionCount) {
   const defaultTitle = getDefaultSetTitle(questionCount);
-  if (setTitleInput) {
-    setTitleInput.placeholder = defaultTitle;
+  if (saveSetModalInput) {
+    saveSetModalInput.placeholder = defaultTitle;
   }
   return defaultTitle;
 }
@@ -968,17 +972,43 @@ function parseAndNormalizeInput() {
   return { questions, sanitizedJsonText };
 }
 
+function openSaveSetModal() {
+  if (!saveSetModal || typeof saveSetModal.showModal !== 'function') {
+    return false;
+  }
+
+  saveSetModal.showModal();
+  requestAnimationFrame(() => {
+    saveSetModalInput?.focus();
+  });
+  return true;
+}
+
+function closeSaveSetModal() {
+  saveSetModal?.close();
+  if (saveSetModalInput) {
+    saveSetModalInput.value = '';
+  }
+  state.pendingSavePayload = null;
+}
+
 saveSetBtn?.addEventListener('click', () => {
   setupError.textContent = '';
 
   try {
     const { questions, sanitizedJsonText } = parseAndNormalizeInput();
-    const userTitle = setTitleInput?.value || '';
-    saveQuestionSet(sanitizedJsonText, questions.length, userTitle);
-    if (setTitleInput) {
-      setTitleInput.value = '';
+    state.pendingSavePayload = {
+      questions,
+      sanitizedJsonText,
+      questionCount: questions.length,
+    };
+
+    const opened = openSaveSetModal();
+    if (!opened) {
+      saveQuestionSet(sanitizedJsonText, questions.length);
+      setupError.textContent = '문제 세트를 저장했어요.';
+      state.pendingSavePayload = null;
     }
-    setupError.textContent = '문제 세트를 저장했어요.';
   } catch (error) {
     setupError.textContent = `문제 세트 저장 실패: ${error.message}`;
   }
@@ -1122,6 +1152,35 @@ closeGuideBtn?.addEventListener('click', () => {
 guideModal?.addEventListener('click', (event) => {
   if (event.target === guideModal) {
     guideModal.close();
+  }
+});
+
+saveSetConfirmBtn?.addEventListener('click', () => {
+  const payload = state.pendingSavePayload;
+  if (!payload) {
+    closeSaveSetModal();
+    return;
+  }
+
+  const userTitle = saveSetModalInput?.value || '';
+  saveQuestionSet(payload.sanitizedJsonText, payload.questionCount, userTitle);
+  setupError.textContent = '문제 세트를 저장했어요.';
+  closeSaveSetModal();
+});
+
+saveSetCancelBtn?.addEventListener('click', () => {
+  closeSaveSetModal();
+});
+
+saveSetModal?.addEventListener('click', (event) => {
+  if (event.target === saveSetModal) {
+    closeSaveSetModal();
+  }
+});
+
+saveSetModal?.addEventListener('close', () => {
+  if (saveSetModalInput) {
+    saveSetModalInput.value = '';
   }
 });
 

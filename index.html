@@ -36,12 +36,6 @@
             placeholder='예시: [{"type":"multiple","question":"...","choices":["A","B"],"answer":"A","explanation":"..."}]'
           ></textarea>
           <div class="save-set-controls">
-            <input
-              id="set-title-input"
-              type="text"
-              placeholder="문제 n개 세트"
-              aria-label="저장할 문제 세트 제목"
-            />
             <button id="save-set-btn" class="secondary" type="button">
               문제 저장
             </button>
@@ -147,6 +141,24 @@
         </section>
       </main>
     </div>
+
+
+    <dialog id="save-set-modal" class="save-set-modal">
+      <article class="save-set-modal-content">
+        <h3>문제 세트 저장</h3>
+        <p class="help-text compact">제목을 입력하지 않으면 기본 제목으로 저장돼요.</p>
+        <input
+          id="save-set-modal-input"
+          type="text"
+          placeholder="문제 n개 세트"
+          aria-label="저장할 문제 세트 제목"
+        />
+        <div class="actions">
+          <button id="save-set-confirm-btn" class="primary" type="button">완료</button>
+          <button id="save-set-cancel-btn" class="ghost" type="button">취소</button>
+        </div>
+      </article>
+    </dialog>
 
     <dialog id="guide-modal" class="guide-modal">
       <article class="guide-content">

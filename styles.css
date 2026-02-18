@@ -18,11 +18,19 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  min-height: 100%;
+  background: #edf3f9;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', 'Noto Sans KR', sans-serif;
   background: linear-gradient(180deg, #f6f9ff 0%, #edf3f9 100%);
+  background-attachment: fixed;
   color: var(--text);
+  overscroll-behavior-y: none;
 }
 
 input,
@@ -36,6 +44,7 @@ select {
   max-width: 960px;
   margin: 0 auto;
   padding: 28px 20px 36px;
+  min-height: 100dvh;
 }
 
 .top-header {
@@ -116,21 +125,9 @@ textarea:focus,
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
 }
 
-#set-title-input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-
-#set-title-input:focus {
-  outline: 2px solid var(--focus);
-  border-color: #a3b2ff;
-}
 
 .format-guide {
   margin-top: 12px;
@@ -450,6 +447,43 @@ button.ghost {
   font-weight: 700;
 }
 
+
+.save-set-modal {
+  border: none;
+  border-radius: 16px;
+  padding: 0;
+  max-width: min(92vw, 420px);
+}
+
+.save-set-modal::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.save-set-modal-content {
+  background: #fff;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.save-set-modal-content h3 {
+  margin: 0 0 8px;
+}
+
+#save-set-modal-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+#save-set-modal-input:focus {
+  outline: 2px solid var(--focus);
+  border-color: #a3b2ff;
+}
+
 .guide-modal {
   border: none;
   border-radius: 16px;
@@ -529,7 +563,6 @@ button.ghost {
 
 @media (max-width: 640px) {
   .save-set-controls {
-    flex-direction: column;
-    align-items: stretch;
+    justify-content: flex-end;
   }
 }
