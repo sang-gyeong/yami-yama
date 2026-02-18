@@ -63,27 +63,8 @@
               <h3>저장된 문제 세트</h3>
               <button id="refresh-saved-btn" class="ghost" type="button">새로고침</button>
             </div>
-            <p class="help-text compact">생성했던 세트를 저장해두고, 클릭해서 바로 다시 불러와 풀 수 있어요.</p>
+            <p class="help-text compact">생성했던 세트는 서버에 자동 저장되며, 클릭해서 바로 다시 불러와 풀 수 있어요.</p>
 
-            <details class="remote-sync-guide">
-              <summary>무료 서버 저장(Firebase Realtime Database) 연결</summary>
-              <p class="help-text compact">
-                Firebase 무료 요금제(Spark)에서 만든 Realtime Database URL을 넣으면 문제 세트를 서버에 저장/불러올 수 있어요.
-              </p>
-              <label class="inline-field" for="firebase-db-url">Database URL</label>
-              <input
-                id="firebase-db-url"
-                class="text-input"
-                type="url"
-                placeholder="예: https://my-quiz-default-rtdb.firebaseio.com"
-              />
-              <div class="saved-actions top-gap">
-                <button id="save-remote-config-btn" class="secondary" type="button">주소 저장</button>
-                <button id="push-remote-btn" class="ghost" type="button">서버에 업로드</button>
-                <button id="pull-remote-btn" class="ghost" type="button">서버에서 불러오기</button>
-              </div>
-              <p id="remote-sync-feedback" class="copy-feedback" aria-live="polite"></p>
-            </details>
 
             <div id="saved-set-list" class="saved-set-list"></div>
           </section>
@@ -169,7 +150,7 @@
           <li><strong>문제 풀이:</strong> 답을 입력하고 제출하면 정답/해설을 확인할 수 있습니다.</li>
           <li><strong>반복 학습:</strong> 결과 화면에서 틀린 문제만 다시 풀어 복습할 수 있습니다.</li>
           <li><strong>저장 세트 활용:</strong> 생성한 문제 세트는 홈 화면에 저장되며, 제목 변경/삭제 후 다시 불러올 수 있습니다.</li>
-          <li><strong>무료 서버 동기화:</strong> Firebase Realtime Database URL을 연결하면 세트를 서버에도 저장/복원할 수 있습니다.</li>
+          <li><strong>무료 서버 동기화:</strong> 문제 내역은 기본 서버에 자동 저장/복원됩니다.</li>
         </ol>
       </article>
     </dialog>

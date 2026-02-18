@@ -25,7 +25,7 @@ const sampleJson = [
 ];
 
 const STORAGE_KEY = 'yami-yama.savedSets.v1';
-const REMOTE_CONFIG_KEY = 'yami-yama.remoteConfig.v1';
+const REMOTE_BASE_URL = 'https://yami-yama-default-rtdb.firebaseio.com';
 
 const state = {
   originalSet: [],
@@ -199,50 +199,12 @@ function setSavedSets(sets) {
 }
 
 
-function getRemoteConfig() {
-  const raw = localStorage.getItem(REMOTE_CONFIG_KEY);
-  if (!raw) {
-    return { firebaseDbUrl: '' };
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return { firebaseDbUrl: String(parsed.firebaseDbUrl || '').trim() };
-  } catch {
-    return { firebaseDbUrl: '' };
-  }
-}
-
-function setRemoteConfig(config) {
-  localStorage.setItem(REMOTE_CONFIG_KEY, JSON.stringify(config));
-}
-
-function normalizeFirebaseDbUrl(rawValue) {
-  const trimmed = String(rawValue || '').trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  return trimmed.replace(/\/$/, '');
-}
-
-function setRemoteFeedback(message, { isError = false } = {}) {
-  if (!remoteSyncFeedback) {
-    return;
-  }
-
-  remoteSyncFeedback.textContent = message;
-  remoteSyncFeedback.classList.toggle('error-text', isError);
-}
-
 function getRemoteSetsEndpoint() {
-  const config = getRemoteConfig();
-  const normalizedUrl = normalizeFirebaseDbUrl(config.firebaseDbUrl);
-  if (!normalizedUrl) {
-    throw new Error('먼저 Firebase Realtime Database URL을 저장해주세요.');
-  }
+  return `${REMOTE_BASE_URL}/quizSets.json`;
+}
 
-  return `${normalizedUrl}/quizSets.json`;
+function reportSyncError(error, actionLabel) {
+  setupError.textContent = `${actionLabel} 실패: ${error.message}`;
 }
 
 async function pushSetsToRemote() {
@@ -298,6 +260,15 @@ async function pullSetsFromRemote() {
   setSavedSets(sanitized);
   renderSavedSets();
   return sanitized.length;
+}
+
+async function syncLocalSetsToRemote(actionLabel = '서버 저장') {
+  try {
+    const count = await pushSetsToRemote();
+    setupError.textContent = `${actionLabel} 완료: 서버에 ${count}개 세트를 반영했어요.`;
+  } catch (error) {
+    reportSyncError(error, actionLabel);
+  }
 }
 
 function formatDate(dateValue) {
@@ -356,6 +327,7 @@ function saveQuestionSet(rawJson, questionCount) {
     }
     setSavedSets(sets);
     renderSavedSets();
+    void syncLocalSetsToRemote('중복 세트 갱신');
     return;
   }
 
@@ -369,6 +341,7 @@ function saveQuestionSet(rawJson, questionCount) {
 
   setSavedSets([newSet, ...sets].slice(0, 50));
   renderSavedSets();
+  void syncLocalSetsToRemote('새 세트 저장');
 }
 
 function extractFirstJsonArray(rawText) {
@@ -1080,6 +1053,7 @@ savedSetList?.addEventListener('click', (event) => {
     setSavedSets(sets);
     renderSavedSets();
     setupError.textContent = '문제 세트 제목을 수정했어요.';
+    void syncLocalSetsToRemote('제목 변경');
     return;
   }
 
@@ -1087,47 +1061,20 @@ savedSetList?.addEventListener('click', (event) => {
     const nextSets = sets.filter((setItem) => setItem.id !== setId);
     setSavedSets(nextSets);
     renderSavedSets();
+    void syncLocalSetsToRemote('세트 삭제');
   }
 });
 
 
-saveRemoteConfigBtn?.addEventListener('click', () => {
-  const normalized = normalizeFirebaseDbUrl(firebaseDbUrlInput?.value || '');
-  setRemoteConfig({ firebaseDbUrl: normalized });
-  if (firebaseDbUrlInput) {
-    firebaseDbUrlInput.value = normalized;
-  }
-
-  if (normalized) {
-    setRemoteFeedback('Database URL을 저장했어요.');
-  } else {
-    setRemoteFeedback('Database URL이 비어 있어요. 필요하면 다시 입력해 주세요.', {
-      isError: true,
-    });
-  }
-});
-
-pushRemoteBtn?.addEventListener('click', async () => {
-  setRemoteFeedback('서버 업로드 중...');
-  try {
-    const count = await pushSetsToRemote();
-    setRemoteFeedback(`서버에 ${count}개 세트를 업로드했어요.`);
-  } catch (error) {
-    setRemoteFeedback(`업로드 실패: ${error.message}`, { isError: true });
-  }
-});
-
-pullRemoteBtn?.addEventListener('click', async () => {
-  setRemoteFeedback('서버 데이터 불러오는 중...');
+refreshSavedBtn?.addEventListener('click', async () => {
+  setupError.textContent = '';
   try {
     const count = await pullSetsFromRemote();
-    setRemoteFeedback(`서버에서 ${count}개 세트를 불러왔어요.`);
+    setupError.textContent = `서버에서 ${count}개 세트를 새로고침했어요.`;
   } catch (error) {
-    setRemoteFeedback(`불러오기 실패: ${error.message}`, { isError: true });
+    reportSyncError(error, '새로고침');
   }
 });
-
-refreshSavedBtn?.addEventListener('click', renderSavedSets);
 
 openGuideBtn?.addEventListener('click', () => {
   if (typeof guideModal.showModal === 'function') {
@@ -1157,4 +1104,16 @@ if (firebaseDbUrlInput) {
 }
 
 renderSavedSets();
-applyRouteFromHash();
+
+(async () => {
+  try {
+    const count = await pullSetsFromRemote();
+    if (count > 0) {
+      setupError.textContent = `서버에서 ${count}개 세트를 불러왔어요.`;
+    }
+  } catch (error) {
+    reportSyncError(error, '초기 불러오기');
+  } finally {
+    applyRouteFromHash();
+  }
+})();
