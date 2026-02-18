@@ -170,6 +170,41 @@ pre {
   gap: 10px;
 }
 
+
+.remote-sync-guide {
+  margin-top: 12px;
+}
+
+.inline-field {
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text);
+}
+
+.text-input:focus {
+  outline: 2px solid var(--focus);
+  border-color: #a3b2ff;
+}
+
+.top-gap {
+  margin-top: 10px;
+}
+
+.error-text {
+  color: var(--bad);
+}
+
 .saved-set-item {
   border: 1px solid #dce5f3;
   border-radius: 12px;

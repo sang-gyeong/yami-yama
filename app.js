@@ -25,6 +25,7 @@ const sampleJson = [
 ];
 
 const STORAGE_KEY = 'yami-yama.savedSets.v1';
+const REMOTE_CONFIG_KEY = 'yami-yama.remoteConfig.v1';
 
 const state = {
   originalSet: [],
@@ -53,6 +54,11 @@ const closeGuideBtn = document.getElementById('close-guide-btn');
 const guideModal = document.getElementById('guide-modal');
 const savedSetList = document.getElementById('saved-set-list');
 const refreshSavedBtn = document.getElementById('refresh-saved-btn');
+const firebaseDbUrlInput = document.getElementById('firebase-db-url');
+const saveRemoteConfigBtn = document.getElementById('save-remote-config-btn');
+const pushRemoteBtn = document.getElementById('push-remote-btn');
+const pullRemoteBtn = document.getElementById('pull-remote-btn');
+const remoteSyncFeedback = document.getElementById('remote-sync-feedback');
 
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
@@ -192,6 +198,108 @@ function setSavedSets(sets) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sets));
 }
 
+
+function getRemoteConfig() {
+  const raw = localStorage.getItem(REMOTE_CONFIG_KEY);
+  if (!raw) {
+    return { firebaseDbUrl: '' };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return { firebaseDbUrl: String(parsed.firebaseDbUrl || '').trim() };
+  } catch {
+    return { firebaseDbUrl: '' };
+  }
+}
+
+function setRemoteConfig(config) {
+  localStorage.setItem(REMOTE_CONFIG_KEY, JSON.stringify(config));
+}
+
+function normalizeFirebaseDbUrl(rawValue) {
+  const trimmed = String(rawValue || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed.replace(/\/$/, '');
+}
+
+function setRemoteFeedback(message, { isError = false } = {}) {
+  if (!remoteSyncFeedback) {
+    return;
+  }
+
+  remoteSyncFeedback.textContent = message;
+  remoteSyncFeedback.classList.toggle('error-text', isError);
+}
+
+function getRemoteSetsEndpoint() {
+  const config = getRemoteConfig();
+  const normalizedUrl = normalizeFirebaseDbUrl(config.firebaseDbUrl);
+  if (!normalizedUrl) {
+    throw new Error('먼저 Firebase Realtime Database URL을 저장해주세요.');
+  }
+
+  return `${normalizedUrl}/quizSets.json`;
+}
+
+async function pushSetsToRemote() {
+  const endpoint = getRemoteSetsEndpoint();
+  const sets = getSavedSets();
+
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(sets),
+  });
+
+  if (!response.ok) {
+    throw new Error(`업로드 실패 (HTTP ${response.status})`);
+  }
+
+  return sets.length;
+}
+
+async function pullSetsFromRemote() {
+  const endpoint = getRemoteSetsEndpoint();
+  const response = await fetch(endpoint);
+
+  if (!response.ok) {
+    throw new Error(`불러오기 실패 (HTTP ${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (payload === null) {
+    setSavedSets([]);
+    renderSavedSets();
+    return 0;
+  }
+
+  if (!Array.isArray(payload)) {
+    throw new Error('서버 데이터 형식이 올바르지 않습니다.');
+  }
+
+  const sanitized = payload
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      id: String(item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+      createdAt: String(item.createdAt || new Date().toISOString()),
+      questionCount: Number(item.questionCount || 0),
+      title: String(item.title || '제목 없는 세트'),
+      rawJson: String(item.rawJson || '').trim(),
+    }))
+    .filter((item) => item.rawJson)
+    .slice(0, 50);
+
+  setSavedSets(sanitized);
+  renderSavedSets();
+  return sanitized.length;
+}
+
 function formatDate(dateValue) {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) {
@@ -226,6 +334,7 @@ function renderSavedSets() {
       </div>
       <div class="saved-actions">
         <button type="button" class="secondary load-set-btn" data-set-id="${escapeHtml(setItem.id)}">불러오기</button>
+        <button type="button" class="ghost rename-set-btn" data-set-id="${escapeHtml(setItem.id)}">제목 변경</button>
         <button type="button" class="ghost delete-set-btn" data-set-id="${escapeHtml(setItem.id)}">삭제</button>
       </div>
     `;
@@ -242,6 +351,9 @@ function saveQuestionSet(rawJson, questionCount) {
   if (existing) {
     existing.createdAt = new Date().toISOString();
     existing.questionCount = questionCount;
+    if (!existing.title) {
+      existing.title = `문제 ${questionCount}개 세트`;
+    }
     setSavedSets(sets);
     renderSavedSets();
     return;
@@ -952,10 +1064,66 @@ savedSetList?.addEventListener('click', (event) => {
     return;
   }
 
+  if (button.classList.contains('rename-set-btn')) {
+    const nextTitle = prompt('새 제목을 입력해주세요.', selected.title || '');
+    if (nextTitle === null) {
+      return;
+    }
+
+    const trimmed = nextTitle.trim();
+    if (!trimmed) {
+      setupError.textContent = '제목은 비워둘 수 없어요.';
+      return;
+    }
+
+    selected.title = trimmed;
+    setSavedSets(sets);
+    renderSavedSets();
+    setupError.textContent = '문제 세트 제목을 수정했어요.';
+    return;
+  }
+
   if (button.classList.contains('delete-set-btn')) {
     const nextSets = sets.filter((setItem) => setItem.id !== setId);
     setSavedSets(nextSets);
     renderSavedSets();
+  }
+});
+
+
+saveRemoteConfigBtn?.addEventListener('click', () => {
+  const normalized = normalizeFirebaseDbUrl(firebaseDbUrlInput?.value || '');
+  setRemoteConfig({ firebaseDbUrl: normalized });
+  if (firebaseDbUrlInput) {
+    firebaseDbUrlInput.value = normalized;
+  }
+
+  if (normalized) {
+    setRemoteFeedback('Database URL을 저장했어요.');
+  } else {
+    setRemoteFeedback('Database URL이 비어 있어요. 필요하면 다시 입력해 주세요.', {
+      isError: true,
+    });
+  }
+});
+
+pushRemoteBtn?.addEventListener('click', async () => {
+  setRemoteFeedback('서버 업로드 중...');
+  try {
+    const count = await pushSetsToRemote();
+    setRemoteFeedback(`서버에 ${count}개 세트를 업로드했어요.`);
+  } catch (error) {
+    setRemoteFeedback(`업로드 실패: ${error.message}`, { isError: true });
+  }
+});
+
+pullRemoteBtn?.addEventListener('click', async () => {
+  setRemoteFeedback('서버 데이터 불러오는 중...');
+  try {
+    const count = await pullSetsFromRemote();
+    setRemoteFeedback(`서버에서 ${count}개 세트를 불러왔어요.`);
+  } catch (error) {
+    setRemoteFeedback(`불러오기 실패: ${error.message}`, { isError: true });
   }
 });
 
@@ -981,6 +1149,11 @@ window.addEventListener('hashchange', applyRouteFromHash);
 
 if (!window.location.hash) {
   setRoute('#/setup', { replace: true });
+}
+
+const remoteConfig = getRemoteConfig();
+if (firebaseDbUrlInput) {
+  firebaseDbUrlInput.value = normalizeFirebaseDbUrl(remoteConfig.firebaseDbUrl);
 }
 
 renderSavedSets();
