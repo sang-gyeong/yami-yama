@@ -25,6 +25,7 @@ const sampleJson = [
 ];
 
 const STORAGE_KEY = 'yami-yama.savedSets.v1';
+const REMOTE_BASE_URL = 'https://yami-yama-default-rtdb.firebaseio.com';
 
 const state = {
   originalSet: [],
@@ -192,6 +193,79 @@ function setSavedSets(sets) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sets));
 }
 
+
+function getRemoteSetsEndpoint() {
+  return `${REMOTE_BASE_URL}/quizSets.json`;
+}
+
+function reportSyncError(error, actionLabel) {
+  setupError.textContent = `${actionLabel} 실패: ${error.message}`;
+}
+
+async function pushSetsToRemote() {
+  const endpoint = getRemoteSetsEndpoint();
+  const sets = getSavedSets();
+
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(sets),
+  });
+
+  if (!response.ok) {
+    throw new Error(`업로드 실패 (HTTP ${response.status})`);
+  }
+
+  return sets.length;
+}
+
+async function pullSetsFromRemote() {
+  const endpoint = getRemoteSetsEndpoint();
+  const response = await fetch(endpoint);
+
+  if (!response.ok) {
+    throw new Error(`불러오기 실패 (HTTP ${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (payload === null) {
+    setSavedSets([]);
+    renderSavedSets();
+    return 0;
+  }
+
+  if (!Array.isArray(payload)) {
+    throw new Error('서버 데이터 형식이 올바르지 않습니다.');
+  }
+
+  const sanitized = payload
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      id: String(item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+      createdAt: String(item.createdAt || new Date().toISOString()),
+      questionCount: Number(item.questionCount || 0),
+      title: String(item.title || '제목 없는 세트'),
+      rawJson: String(item.rawJson || '').trim(),
+    }))
+    .filter((item) => item.rawJson)
+    .slice(0, 50);
+
+  setSavedSets(sanitized);
+  renderSavedSets();
+  return sanitized.length;
+}
+
+async function syncLocalSetsToRemote(actionLabel = '서버 저장') {
+  try {
+    const count = await pushSetsToRemote();
+    setupError.textContent = `${actionLabel} 완료: 서버에 ${count}개 세트를 반영했어요.`;
+  } catch (error) {
+    reportSyncError(error, actionLabel);
+  }
+}
+
 function formatDate(dateValue) {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) {
@@ -226,6 +300,7 @@ function renderSavedSets() {
       </div>
       <div class="saved-actions">
         <button type="button" class="secondary load-set-btn" data-set-id="${escapeHtml(setItem.id)}">불러오기</button>
+        <button type="button" class="ghost rename-set-btn" data-set-id="${escapeHtml(setItem.id)}">제목 변경</button>
         <button type="button" class="ghost delete-set-btn" data-set-id="${escapeHtml(setItem.id)}">삭제</button>
       </div>
     `;
@@ -242,8 +317,12 @@ function saveQuestionSet(rawJson, questionCount) {
   if (existing) {
     existing.createdAt = new Date().toISOString();
     existing.questionCount = questionCount;
+    if (!existing.title) {
+      existing.title = `문제 ${questionCount}개 세트`;
+    }
     setSavedSets(sets);
     renderSavedSets();
+    void syncLocalSetsToRemote('중복 세트 갱신');
     return;
   }
 
@@ -257,6 +336,7 @@ function saveQuestionSet(rawJson, questionCount) {
 
   setSavedSets([newSet, ...sets].slice(0, 50));
   renderSavedSets();
+  void syncLocalSetsToRemote('새 세트 저장');
 }
 
 function extractFirstJsonArray(rawText) {
@@ -952,14 +1032,44 @@ savedSetList?.addEventListener('click', (event) => {
     return;
   }
 
+  if (button.classList.contains('rename-set-btn')) {
+    const nextTitle = prompt('새 제목을 입력해주세요.', selected.title || '');
+    if (nextTitle === null) {
+      return;
+    }
+
+    const trimmed = nextTitle.trim();
+    if (!trimmed) {
+      setupError.textContent = '제목은 비워둘 수 없어요.';
+      return;
+    }
+
+    selected.title = trimmed;
+    setSavedSets(sets);
+    renderSavedSets();
+    setupError.textContent = '문제 세트 제목을 수정했어요.';
+    void syncLocalSetsToRemote('제목 변경');
+    return;
+  }
+
   if (button.classList.contains('delete-set-btn')) {
     const nextSets = sets.filter((setItem) => setItem.id !== setId);
     setSavedSets(nextSets);
     renderSavedSets();
+    void syncLocalSetsToRemote('세트 삭제');
   }
 });
 
-refreshSavedBtn?.addEventListener('click', renderSavedSets);
+
+refreshSavedBtn?.addEventListener('click', async () => {
+  setupError.textContent = '';
+  try {
+    const count = await pullSetsFromRemote();
+    setupError.textContent = `서버에서 ${count}개 세트를 새로고침했어요.`;
+  } catch (error) {
+    reportSyncError(error, '새로고침');
+  }
+});
 
 openGuideBtn?.addEventListener('click', () => {
   if (typeof guideModal.showModal === 'function') {
@@ -984,4 +1094,16 @@ if (!window.location.hash) {
 }
 
 renderSavedSets();
-applyRouteFromHash();
+
+(async () => {
+  try {
+    const count = await pullSetsFromRemote();
+    if (count > 0) {
+      setupError.textContent = `서버에서 ${count}개 세트를 불러왔어요.`;
+    }
+  } catch (error) {
+    reportSyncError(error, '초기 불러오기');
+  } finally {
+    applyRouteFromHash();
+  }
+})();
