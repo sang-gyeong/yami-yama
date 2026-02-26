@@ -106,21 +106,15 @@
         <section id="image-setup-screen" class="card screen beige-screen">
           <h2>골학 이미지 파일명 퀴즈</h2>
           <p class="help-text">
-            Firebase에 올려둔 이미지 URL 목록을 한 줄에 하나씩 붙여넣어 주세요. 각 이미지의
-            <strong>파일명(확장자 제외)</strong>을 입력하면 정답 처리됩니다.
-            <br />대소문자는 구분하지 않습니다. (예: <code>MANDIBLE</code> 입력도 정답)
+            시작 버튼을 누르면 지정된 골학 이미지 목록으로 바로 퀴즈가 시작됩니다.
+            <br />정답 입력은 <strong>대소문자를 구분하지 않습니다.</strong>
           </p>
           <p class="help-text">
-            파일명이 <code>!facial, vestibulocochlear.png</code>처럼 <code>!</code>로 시작하면
-            복수 정답 문제입니다. 이 경우 안내 문구가 표시되며,
+            파일명이 <code>!facial, vestibulocochlear.webp</code>처럼 <code>!</code>로 시작하면
+            복수 정답입니다. 이 경우 안내 문구가 표시되며,
             <strong>쉼표(,)</strong>로 구분해 입력하면 <strong>순서와 대소문자 상관없이</strong>
             정답 처리됩니다.
           </p>
-
-          <textarea
-            id="image-url-input"
-            placeholder="https://firebasestorage.googleapis.com/.../mandible.png\nhttps://firebasestorage.googleapis.com/.../%21facial%2C%20vestibulocochlear.png"
-          ></textarea>
 
           <div class="options">
             <h3>정답/해설 확인 시점</h3>
@@ -135,7 +129,7 @@
           </div>
 
           <div class="actions">
-            <button id="start-image-quiz-btn" class="primary">이미지 퀴즈 시작</button>
+            <button id="start-image-quiz-btn" class="primary">퀴즈 시작</button>
           </div>
           <p id="image-setup-error" class="error"></p>
         </section>

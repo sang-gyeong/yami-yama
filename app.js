@@ -27,6 +27,15 @@ const sampleJson = [
 const STORAGE_KEY = 'yami-yama.savedSets.v1';
 const REMOTE_BASE_URL = 'https://yami-yama-default-rtdb.firebaseio.com';
 
+const STORAGE_LIST_ENDPOINT =
+  'https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o?maxResults=1000';
+
+function buildStorageMediaUrl(name) {
+  return `https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o/${encodeURIComponent(
+    name,
+  )}?alt=media`;
+}
+
 const state = {
   originalSet: [],
   quizSet: [],
@@ -45,7 +54,6 @@ const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const jsonInput = document.getElementById('json-input');
-const imageUrlInput = document.getElementById('image-url-input');
 const imageSetupError = document.getElementById('image-setup-error');
 const openJsonQuizBtn = document.getElementById('open-json-quiz-btn');
 const openImageQuizBtn = document.getElementById('open-image-quiz-btn');
@@ -188,6 +196,10 @@ function setModeSwitch(type) {
   openImageQuizBtn?.classList.toggle('ghost', type !== 'image');
 }
 
+function normalizeAnswerToken(token) {
+  return token.replace(/_\d+$/i, '').trim();
+}
+
 function parseFilenameFromUrl(urlText) {
   const trimmed = urlText.trim();
   if (!trimmed) {
@@ -200,17 +212,24 @@ function parseFilenameFromUrl(urlText) {
   return nameWithExt.replace(/\.[^.]+$/, '').trim();
 }
 
-function parseImageQuizQuestions(rawText) {
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    throw new Error('이미지 URL을 1개 이상 입력해주세요.');
+async function loadDefaultImageQuizQuestions() {
+  const response = await fetch(STORAGE_LIST_ENDPOINT);
+  if (!response.ok) {
+    throw new Error(`이미지 목록을 불러오지 못했습니다. (HTTP ${response.status})`);
   }
 
-  return lines.map((url, index) => {
+  const payload = await response.json();
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const urls = items
+    .map((item) => String(item?.name || '').trim())
+    .filter((name) => name.toLowerCase().endsWith('.webp'))
+    .map(buildStorageMediaUrl);
+
+  if (urls.length === 0) {
+    throw new Error('기본 이미지 목록에서 .webp 파일을 찾지 못했습니다.');
+  }
+
+  return urls.map((url, index) => {
     const fileName = parseFilenameFromUrl(url);
     if (!fileName) {
       throw new Error(`${index + 1}번째 URL에서 파일명을 읽을 수 없습니다.`);
@@ -220,7 +239,7 @@ function parseImageQuizQuestions(rawText) {
     const normalizedAnswerName = isMultiName ? fileName.slice(1) : fileName;
     const splitAnswers = normalizedAnswerName
       .split(',')
-      .map((part) => part.trim())
+      .map((part) => normalizeAnswerToken(part.trim()))
       .filter(Boolean);
 
     if (splitAnswers.length === 0) {
@@ -228,12 +247,12 @@ function parseImageQuizQuestions(rawText) {
     }
 
     const guidance = isMultiName
-      ? '복수 정답 문제입니다. 쉼표(,)로 구분해 입력하세요. 순서/대소문자는 상관없습니다.'
-      : '파일명 정답을 입력하세요. 대소문자는 구분하지 않습니다.';
+      ? '복수 정답입니다. 쉼표(,)로 구분해 입력하세요. 순서/대소문자는 상관없습니다.'
+      : '대소문자는 구분하지 않습니다.';
 
     return {
       type: 'short',
-      question: `이미지 ${index + 1}의 뼈 이름(파일명)을 입력하세요.`,
+      question: '',
       choices: [],
       acceptedAnswers: splitAnswers,
       acceptedAnswerSet: isMultiName,
@@ -704,16 +723,19 @@ function renderQuestion() {
   modeBadge.textContent =
     state.reviewMode === 'immediate' ? '즉시 채점 모드' : '일괄 채점 모드';
 
+  const isImageQuizQuestion = Boolean(q.imageUrl);
   const typeLabel =
     q.type === 'multiple' ? '객관식' : q.type === 'short' ? '주관식' : '서술형';
-  questionTitle.textContent = `문제 ${state.currentIndex + 1} (${typeLabel})`;
-  questionText.textContent = q.question;
+  questionTitle.textContent = isImageQuizQuestion
+    ? `이미지 ${state.currentIndex + 1}`
+    : `문제 ${state.currentIndex + 1} (${typeLabel})`;
+  questionText.textContent = isImageQuizQuestion ? '' : q.question;
 
   if (q.imageUrl) {
     questionMedia.classList.remove('hidden');
     const multiGuide = q.acceptedAnswerSet
       ? '<p class="question-media-guide">복수 정답: 쉼표(,)로 구분해서 입력하세요. 순서/대소문자 무관</p>'
-      : '<p class="question-media-guide">대소문자 구분 없이 파일명 정답 입력</p>';
+      : '<p class="question-media-guide">대소문자 구분 없이 입력</p>';
     questionMedia.innerHTML = `<img src="${escapeHtml(q.imageUrl)}" alt="퀴즈 이미지 ${state.currentIndex + 1}" class="question-image" />${multiGuide}`;
   } else {
     questionMedia.classList.add('hidden');
@@ -1156,11 +1178,11 @@ document.getElementById('start-btn').addEventListener('click', () => {
 });
 
 
-startImageQuizBtn?.addEventListener('click', () => {
+startImageQuizBtn?.addEventListener('click', async () => {
   imageSetupError.textContent = '';
 
   try {
-    const questions = parseImageQuizQuestions(imageUrlInput.value);
+    const questions = await loadDefaultImageQuizQuestions();
     state.originalSet = questions;
     const mode = document.querySelector('input[name="review-mode-image"]:checked').value;
     state.reviewMode = mode;
