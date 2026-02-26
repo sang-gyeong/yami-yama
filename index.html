@@ -26,6 +26,11 @@
       </header>
 
       <main>
+        <div class="mode-switch" role="tablist" aria-label="퀴즈 유형 선택">
+          <button id="open-json-quiz-btn" class="secondary active" type="button">기존 JSON 퀴즈</button>
+          <button id="open-image-quiz-btn" class="ghost" type="button">골학 이미지 퀴즈</button>
+        </div>
+
         <section id="setup-screen" class="card screen active">
           <h2>문제 세트 준비</h2>
           <p class="help-text">
@@ -98,6 +103,43 @@
           <p id="setup-error" class="error"></p>
         </section>
 
+        <section id="image-setup-screen" class="card screen beige-screen">
+          <h2>골학 이미지 파일명 퀴즈</h2>
+          <p class="help-text">
+            Firebase에 올려둔 이미지 URL 목록을 한 줄에 하나씩 붙여넣어 주세요. 각 이미지의
+            <strong>파일명(확장자 제외)</strong>을 입력하면 정답 처리됩니다.
+            <br />대소문자는 구분하지 않습니다. (예: <code>MANDIBLE</code> 입력도 정답)
+          </p>
+          <p class="help-text">
+            파일명이 <code>!facial, vestibulocochlear.png</code>처럼 <code>!</code>로 시작하면
+            복수 정답 문제입니다. 이 경우 안내 문구가 표시되며,
+            <strong>쉼표(,)</strong>로 구분해 입력하면 <strong>순서와 대소문자 상관없이</strong>
+            정답 처리됩니다.
+          </p>
+
+          <textarea
+            id="image-url-input"
+            placeholder="https://firebasestorage.googleapis.com/.../mandible.png\nhttps://firebasestorage.googleapis.com/.../%21facial%2C%20vestibulocochlear.png"
+          ></textarea>
+
+          <div class="options">
+            <h3>정답/해설 확인 시점</h3>
+            <label>
+              <input type="radio" name="review-mode-image" value="immediate" checked />
+              문제를 풀 때마다 바로 확인
+            </label>
+            <label>
+              <input type="radio" name="review-mode-image" value="end" />
+              한 세트 전부 푼 뒤 몰아서 확인
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="start-image-quiz-btn" class="primary">이미지 퀴즈 시작</button>
+          </div>
+          <p id="image-setup-error" class="error"></p>
+        </section>
+
         <section id="exam-screen" class="card screen" aria-live="polite">
           <div class="exam-header">
             <div>
@@ -110,6 +152,7 @@
           <article class="question-box">
             <h3 id="question-title"></h3>
             <p id="question-text"></p>
+            <div id="question-media" class="question-media hidden"></div>
             <form id="answer-form">
               <div id="answer-area"></div>
             </form>

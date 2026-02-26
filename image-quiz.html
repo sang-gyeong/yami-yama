@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>야미야마 - 골학 이미지 퀴즈</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="image-quiz.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-header">
+        <div>
+          <h1>골학 이미지 퀴즈</h1>
+          <p>이미지를 보고 정답을 입력해보세요.</p>
+        </div>
+      </header>
+
+      <main>
+        <section id="setup-screen" class="card screen active">
+          <h2>퀴즈 시작</h2>
+          <p class="help-text">
+            시작 버튼을 누르면 Firebase에 준비된 이미지로 퀴즈가 시작됩니다.
+            <br />정답 입력은 <strong>대소문자를 구분하지 않습니다.</strong>
+          </p>
+          <p class="help-text">
+            일부 문항은 복수 정답입니다. 이 경우 안내 문구가 표시되며,
+            <strong>쉼표(,)</strong>로 구분해 입력하면
+            <strong>순서와 대소문자 상관없이</strong> 정답 처리됩니다.
+          </p>
+
+          <div class="options">
+            <h3>정답/해설 확인 시점</h3>
+            <label>
+              <input type="radio" name="review-mode" value="immediate" checked />
+              문제를 풀 때마다 바로 확인
+            </label>
+            <label>
+              <input type="radio" name="review-mode" value="end" />
+              한 세트 전부 푼 뒤 몰아서 확인
+            </label>
+          </div>
+
+          <div class="actions">
+            <button id="start-btn" class="primary">퀴즈 시작</button>
+          </div>
+          <p id="setup-error" class="error"></p>
+        </section>
+
+        <section id="exam-screen" class="card screen" aria-live="polite">
+          <div class="exam-header">
+            <div>
+              <h2>시험 진행</h2>
+              <p id="progress-text"></p>
+            </div>
+            <div id="mode-badge" class="badge"></div>
+          </div>
+
+          <article class="question-box">
+            <h3 id="question-title"></h3>
+            <p id="question-text"></p>
+            <div id="question-media" class="question-media"></div>
+            <form id="answer-form">
+              <div id="answer-area"></div>
+            </form>
+          </article>
+
+          <div id="feedback-box" class="feedback hidden"></div>
+
+          <div class="actions exam-actions" id="exam-actions">
+            <button id="submit-btn" class="primary">제출</button>
+            <button id="next-btn" class="primary hidden">다음 문제 →</button>
+            <button id="finish-btn" class="primary hidden">결과 보기</button>
+          </div>
+        </section>
+
+        <section id="result-screen" class="card screen" aria-live="polite">
+          <h2>시험 결과</h2>
+          <div id="result-summary" class="summary"></div>
+          <div id="motivation" class="motivation"></div>
+          <div id="result-list" class="result-list"></div>
+
+          <div class="actions wrap">
+            <button id="retry-wrong-btn" class="primary">틀린 문제만 다시 풀기</button>
+            <button id="retry-all-btn" class="secondary">전체 문제 재테스트</button>
+            <button id="go-home-btn" class="ghost">처음으로</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="image-quiz.js"></script>
+  </body>
+</html>
