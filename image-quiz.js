@@ -1,6 +1,3 @@
-const IMAGE_MANIFEST_ENDPOINT =
-  'https://yami-yama-default-rtdb.firebaseio.com/imageQuizWebpUrls.json';
-
 const state = {
   originalSet: [],
   quizSet: [],
@@ -14,6 +11,7 @@ const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const setupError = document.getElementById('setup-error');
+const firebaseUrlInput = document.getElementById('firebase-url-input');
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
 const questionTitle = document.getElementById('question-title');
@@ -100,18 +98,58 @@ function buildQuestionsFromUrls(urls) {
   });
 }
 
-async function loadImageQuizSet() {
-  const response = await fetch(IMAGE_MANIFEST_ENDPOINT);
+function normalizeFirebaseJsonUrl(rawUrl) {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed.endsWith('.json') ? trimmed : `${trimmed.replace(/\/$/, '')}.json`;
+}
+
+function extractWebpUrls(payload) {
+  const collected = [];
+
+  function visit(node) {
+    if (typeof node === 'string') {
+      const text = node.trim();
+      if (/\.webp(?:\?|#|$)/i.test(text)) {
+        collected.push(text);
+      }
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+
+    if (node && typeof node === 'object') {
+      Object.values(node).forEach(visit);
+    }
+  }
+
+  visit(payload);
+  return [...new Set(collected)];
+}
+
+async function loadImageQuizSet(firebaseUrl) {
+  const endpoint = normalizeFirebaseJsonUrl(firebaseUrl);
+  if (!endpoint) {
+    throw new Error('Firebase URL을 입력해주세요.');
+  }
+
+  const response = await fetch(endpoint);
   if (!response.ok) {
     throw new Error(`퀴즈 데이터를 불러오지 못했습니다. (HTTP ${response.status})`);
   }
 
   const payload = await response.json();
-  if (!Array.isArray(payload) || payload.length === 0) {
-    throw new Error('퀴즈 데이터가 비어 있습니다.');
+  const urls = extractWebpUrls(payload);
+  if (urls.length === 0) {
+    throw new Error('해당 URL에서 .webp 이미지 URL을 찾지 못했습니다.');
   }
 
-  const urls = payload.map((item) => String(item || '').trim()).filter(Boolean);
   return buildQuestionsFromUrls(urls);
 }
 
@@ -385,7 +423,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     const mode = document.querySelector('input[name="review-mode"]:checked').value;
     state.reviewMode = mode;
 
-    const questions = await loadImageQuizSet();
+    const questions = await loadImageQuizSet(firebaseUrlInput?.value || "");
     state.originalSet = questions;
     startQuiz([...state.originalSet]);
   } catch (error) {
@@ -418,6 +456,10 @@ document.getElementById('retry-wrong-btn').addEventListener('click', () => {
 document.getElementById('go-home-btn').addEventListener('click', () => openSetup());
 
 window.addEventListener('hashchange', applyRouteFromHash);
+if (firebaseUrlInput) {
+  firebaseUrlInput.value = 'https://yami-yama-default-rtdb.firebaseio.com/imageQuizWebpUrls.json';
+}
+
 if (!window.location.hash) {
   setRoute('#/setup', { replace: true });
 }
