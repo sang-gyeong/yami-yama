@@ -1,0 +1,166 @@
+:root {
+  --bg: #f7efe4;
+  --bg-soft: #f2e6d8;
+  --card: #fffaf3;
+  --line: #e1cfba;
+  --text: #3c2d1f;
+  --muted: #735d47;
+  --primary: #bf8b52;
+  --primary-strong: #a7733c;
+  --secondary-bg: #f4e7d7;
+  --secondary-text: #72512f;
+  --ok: #13693d;
+  --bad: #9f1f43;
+  --focus: #e1b984;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Inter', 'Noto Sans KR', sans-serif;
+  background: linear-gradient(180deg, var(--bg) 0%, #f3e7d8 100%);
+  color: var(--text);
+}
+
+.app-shell {
+  max-width: 940px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 28px 18px 36px;
+}
+
+.top-header {
+  background: linear-gradient(120deg, #f5e6d5, #fff3e6);
+  border: 1px solid #e6cfb4;
+  border-radius: 18px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 22px rgba(90, 60, 30, 0.12);
+}
+
+.top-header h1 { margin: 0; font-size: 1.85rem; font-weight: 800; }
+.top-header p { margin: 6px 0 0; color: #7a5a3d; font-weight: 600; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 10px 24px rgba(80, 50, 24, 0.08);
+}
+.screen { display: none; }
+.screen.active { display: block; }
+
+.help-text { margin-top: 0; color: var(--muted); line-height: 1.65; }
+
+.options { margin-top: 16px; display: grid; gap: 8px; }
+.options label { display: flex; gap: 8px; }
+
+.exam-header { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.badge {
+  border: 1px solid #decaaf;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #f7ebdc;
+  color: #7b5732;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.question-box { margin-top: 10px; border-top: 1px dashed #dcc5ab; padding-top: 14px; }
+#question-title { margin: 0 0 10px; }
+#question-text { margin: 0 0 12px; line-height: 1.7; }
+
+.question-media { margin-bottom: 12px; }
+.question-image {
+  width: 100%;
+  max-height: 380px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.question-guide {
+  margin: 8px 2px 0;
+  color: #7a5838;
+  font-weight: 700;
+}
+
+.short-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 1rem;
+  background: #fff;
+  color: var(--text);
+}
+.short-input:focus {
+  outline: 2px solid var(--focus);
+  border-color: #cc9c62;
+}
+
+.feedback {
+  margin-top: 16px;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid;
+}
+.feedback.correct { border-color: #88d2aa; background: #effcf5; color: var(--ok); }
+.feedback.incorrect { border-color: #e8b8c7; background: #fff3f7; color: var(--bad); }
+.feedback-title { margin-bottom: 8px; }
+.feedback-row { margin-top: 8px; line-height: 1.65; }
+
+.summary {
+  background: #fff7ec;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.result-list { margin-top: 12px; display: grid; gap: 10px; }
+.result-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fff;
+  line-height: 1.65;
+}
+.result-item.incorrect { border-color: #e8c0cb; background: #fff6f8; }
+.motivation { margin-top: 10px; font-weight: 700; color: #664428; }
+
+.actions { display: flex; gap: 10px; margin-top: 16px; }
+.actions.wrap { flex-wrap: wrap; }
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.primary { background: linear-gradient(135deg, var(--primary), var(--primary-strong)); color: #fff; }
+button.secondary { background: var(--secondary-bg); color: var(--secondary-text); }
+button.ghost { background: transparent; border: 1px solid #d8c1a6; color: #74583c; }
+
+.exam-actions {
+  position: sticky;
+  bottom: 10px;
+  z-index: 15;
+  background: rgba(255, 250, 243, 0.98);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+}
+.exam-actions button { min-width: 140px; }
+
+.error { color: var(--bad); margin-top: 10px; min-height: 1.2em; font-weight: 700; }
+.hidden { display: none; }
+
+@media (max-width: 700px) {
+  .app-shell { padding: 12px; }
+  .card { padding: 16px; }
+  .actions { flex-wrap: wrap; }
+  .actions button { flex: 1; min-height: 46px; }
+}
