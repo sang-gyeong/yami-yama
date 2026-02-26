@@ -1,3 +1,6 @@
+const STORAGE_LIST_ENDPOINT =
+  'https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o?maxResults=1000';
+
 const state = {
   originalSet: [],
   quizSet: [],
@@ -11,11 +14,9 @@ const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const setupError = document.getElementById('setup-error');
-const firebaseUrlInput = document.getElementById('firebase-url-input');
 const progressText = document.getElementById('progress-text');
 const modeBadge = document.getElementById('mode-badge');
 const questionTitle = document.getElementById('question-title');
-const questionText = document.getElementById('question-text');
 const questionMedia = document.getElementById('question-media');
 const answerArea = document.getElementById('answer-area');
 const feedbackBox = document.getElementById('feedback-box');
@@ -55,6 +56,10 @@ function normalizeCsvAnswerSet(value) {
     .sort();
 }
 
+function normalizeAnswerToken(token) {
+  return token.replace(/_\d+$/i, '').trim();
+}
+
 function parseFileNameFromUrl(urlText) {
   const clean = String(urlText).split('?')[0].split('#')[0];
   const decoded = decodeURIComponent(clean);
@@ -78,7 +83,7 @@ function buildQuestionsFromUrls(urls) {
     const answerRaw = isMulti ? answerToken.slice(1) : answerToken;
     const acceptedAnswers = answerRaw
       .split(',')
-      .map((part) => part.trim())
+      .map((part) => normalizeAnswerToken(part.trim()))
       .filter(Boolean);
 
     if (acceptedAnswers.length === 0) {
@@ -87,7 +92,7 @@ function buildQuestionsFromUrls(urls) {
 
     return {
       type: 'short',
-      question: `문제 ${index + 1}. 이미지의 해부학 명칭을 입력하세요.`,
+      question: '',
       imageUrl: url,
       acceptedAnswers,
       acceptedAnswerSet: isMulti,
@@ -98,56 +103,27 @@ function buildQuestionsFromUrls(urls) {
   });
 }
 
-function normalizeFirebaseJsonUrl(rawUrl) {
-  const trimmed = String(rawUrl || '').trim();
-  if (!trimmed) {
-    return '';
-  }
-
-  return trimmed.endsWith('.json') ? trimmed : `${trimmed.replace(/\/$/, '')}.json`;
+function buildStorageMediaUrl(name) {
+  return `https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o/${encodeURIComponent(
+    name,
+  )}?alt=media`;
 }
 
-function extractWebpUrls(payload) {
-  const collected = [];
-
-  function visit(node) {
-    if (typeof node === 'string') {
-      const text = node.trim();
-      if (/\.webp(?:\?|#|$)/i.test(text)) {
-        collected.push(text);
-      }
-      return;
-    }
-
-    if (Array.isArray(node)) {
-      node.forEach(visit);
-      return;
-    }
-
-    if (node && typeof node === 'object') {
-      Object.values(node).forEach(visit);
-    }
-  }
-
-  visit(payload);
-  return [...new Set(collected)];
-}
-
-async function loadImageQuizSet(firebaseUrl) {
-  const endpoint = normalizeFirebaseJsonUrl(firebaseUrl);
-  if (!endpoint) {
-    throw new Error('Firebase URL을 입력해주세요.');
-  }
-
-  const response = await fetch(endpoint);
+async function loadDefaultImageQuizSet() {
+  const response = await fetch(STORAGE_LIST_ENDPOINT);
   if (!response.ok) {
-    throw new Error(`퀴즈 데이터를 불러오지 못했습니다. (HTTP ${response.status})`);
+    throw new Error(`이미지 목록을 불러오지 못했습니다. (HTTP ${response.status})`);
   }
 
   const payload = await response.json();
-  const urls = extractWebpUrls(payload);
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const urls = items
+    .map((item) => String(item?.name || '').trim())
+    .filter((name) => name.toLowerCase().endsWith('.webp'))
+    .map(buildStorageMediaUrl);
+
   if (urls.length === 0) {
-    throw new Error('해당 URL에서 .webp 이미지 URL을 찾지 못했습니다.');
+    throw new Error('기본 이미지 목록에서 .webp 파일을 찾지 못했습니다.');
   }
 
   return buildQuestionsFromUrls(urls);
@@ -207,8 +183,7 @@ function renderQuestion() {
   modeBadge.textContent =
     state.reviewMode === 'immediate' ? '즉시 채점 모드' : '일괄 채점 모드';
 
-  questionTitle.textContent = `문제 ${state.currentIndex + 1} (주관식)`;
-  questionText.textContent = q.question;
+  questionTitle.textContent = `이미지 ${state.currentIndex + 1}`;
 
   const guide = q.acceptedAnswerSet
     ? '<p class="question-guide">복수 정답: 쉼표(,)로 구분해 입력하세요. 순서/대소문자 무관</p>'
@@ -306,7 +281,7 @@ function handleSubmit() {
     isCorrect,
     correctAnswerDisplay,
     explanation: q.explanation,
-    question: q.question,
+    question: `이미지 ${state.currentIndex + 1}`,
   };
 
   input.disabled = true;
@@ -423,7 +398,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
     const mode = document.querySelector('input[name="review-mode"]:checked').value;
     state.reviewMode = mode;
 
-    const questions = await loadImageQuizSet(firebaseUrlInput?.value || "");
+    const questions = await loadDefaultImageQuizSet();
     state.originalSet = questions;
     startQuiz([...state.originalSet]);
   } catch (error) {
@@ -456,10 +431,6 @@ document.getElementById('retry-wrong-btn').addEventListener('click', () => {
 document.getElementById('go-home-btn').addEventListener('click', () => openSetup());
 
 window.addEventListener('hashchange', applyRouteFromHash);
-if (firebaseUrlInput) {
-  firebaseUrlInput.value = 'https://yami-yama-default-rtdb.firebaseio.com/imageQuizWebpUrls.json';
-}
-
 if (!window.location.hash) {
   setRoute('#/setup', { replace: true });
 }

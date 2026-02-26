@@ -26,7 +26,7 @@
         <section id="setup-screen" class="card screen active">
           <h2>퀴즈 시작</h2>
           <p class="help-text">
-            Firebase URL을 입력하고 시작 버튼을 누르면, 해당 위치의 이미지 전체로 퀴즈가 시작됩니다.
+            시작 버튼을 누르면 기본 이미지 목록으로 퀴즈가 시작됩니다.
             <br />정답 입력은 <strong>대소문자를 구분하지 않습니다.</strong>
           </p>
           <p class="help-text">
@@ -34,17 +34,6 @@
             <strong>쉼표(,)</strong>로 구분해 입력하면
             <strong>순서와 대소문자 상관없이</strong> 정답 처리됩니다.
           </p>
-
-
-
-          <label class="field-label" for="firebase-url-input">Firebase 이미지 목록 URL</label>
-          <input
-            id="firebase-url-input"
-            class="firebase-url-input"
-            type="url"
-            placeholder="예: https://...firebaseio.com/imageQuizWebpUrls.json"
-          />
-          <p class="help-text compact">해당 URL은 JSON 응답이어야 하며, 내부의 .webp 이미지 URL들을 자동으로 찾아 퀴즈를 만듭니다.</p>
 
           <div class="options">
             <h3>정답/해설 확인 시점</h3>
@@ -75,7 +64,7 @@
 
           <article class="question-box">
             <h3 id="question-title"></h3>
-            <p id="question-text"></p>
+            
             <div id="question-media" class="question-media"></div>
             <form id="answer-form">
               <div id="answer-area"></div>

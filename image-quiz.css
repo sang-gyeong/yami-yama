@@ -55,33 +55,7 @@ body {
 .help-text { margin-top: 0; color: var(--muted); line-height: 1.65; }
 
 
-.field-label {
-  display: block;
-  margin: 8px 0 6px;
-  font-weight: 700;
-  color: #6b4b2f;
-}
 
-.firebase-url-input {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 11px 12px;
-  font-size: 0.96rem;
-  background: #fff;
-  color: var(--text);
-}
-
-.firebase-url-input:focus {
-  outline: 2px solid var(--focus);
-  border-color: #cc9c62;
-}
-
-.help-text.compact {
-  margin-top: 8px;
-  margin-bottom: 0;
-  font-size: 0.92rem;
-}
 
 .options { margin-top: 16px; display: grid; gap: 8px; }
 .options label { display: flex; gap: 8px; }
@@ -99,7 +73,6 @@ body {
 
 .question-box { margin-top: 10px; border-top: 1px dashed #dcc5ab; padding-top: 14px; }
 #question-title { margin: 0 0 10px; }
-#question-text { margin: 0 0 12px; line-height: 1.7; }
 
 .question-media { margin-bottom: 12px; }
 .question-image {
