@@ -30,6 +30,10 @@ const REMOTE_BASE_URL = 'https://yami-yama-default-rtdb.firebaseio.com';
 const STORAGE_LIST_ENDPOINT =
   'https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o?maxResults=1000';
 
+if (window.location.hash === '#/image-setup') {
+  window.location.replace('image-quiz.html#/setup');
+}
+
 function buildStorageMediaUrl(name) {
   return `https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o/${encodeURIComponent(
     name,
