@@ -36,13 +36,21 @@ const state = {
   round: 1,
   currentScreen: 'setup',
   pendingSavePayload: null,
+  activeQuizType: 'json',
 };
 
 const setupScreen = document.getElementById('setup-screen');
+const imageSetupScreen = document.getElementById('image-setup-screen');
 const examScreen = document.getElementById('exam-screen');
 const resultScreen = document.getElementById('result-screen');
 
 const jsonInput = document.getElementById('json-input');
+const imageUrlInput = document.getElementById('image-url-input');
+const imageSetupError = document.getElementById('image-setup-error');
+const openJsonQuizBtn = document.getElementById('open-json-quiz-btn');
+const openImageQuizBtn = document.getElementById('open-image-quiz-btn');
+const startImageQuizBtn = document.getElementById('start-image-quiz-btn');
+const questionMedia = document.getElementById('question-media');
 const saveSetBtn = document.getElementById('save-set-btn');
 const saveSetModal = document.getElementById('save-set-modal');
 const saveSetModalInput = document.getElementById('save-set-modal-input');
@@ -163,10 +171,84 @@ jsonExample.textContent = JSON.stringify(sampleJson, null, 2);
 promptTemplate.textContent = medicalPromptTemplate;
 
 function showScreen(screen) {
-  [setupScreen, examScreen, resultScreen].forEach((el) =>
-    el.classList.remove('active'),
-  );
+  [setupScreen, imageSetupScreen, examScreen, resultScreen]
+    .filter(Boolean)
+    .forEach((el) => el.classList.remove('active'));
   screen.classList.add('active');
+}
+
+
+function setModeSwitch(type) {
+  state.activeQuizType = type;
+  openJsonQuizBtn?.classList.toggle('active', type === 'json');
+  openJsonQuizBtn?.classList.toggle('secondary', type === 'json');
+  openJsonQuizBtn?.classList.toggle('ghost', type !== 'json');
+  openImageQuizBtn?.classList.toggle('active', type === 'image');
+  openImageQuizBtn?.classList.toggle('secondary', type === 'image');
+  openImageQuizBtn?.classList.toggle('ghost', type !== 'image');
+}
+
+function parseFilenameFromUrl(urlText) {
+  const trimmed = urlText.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const clean = trimmed.split('?')[0].split('#')[0];
+  const decoded = decodeURIComponent(clean);
+  const nameWithExt = decoded.split('/').pop() || '';
+  return nameWithExt.replace(/\.[^.]+$/, '').trim();
+}
+
+function parseImageQuizQuestions(rawText) {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    throw new Error('이미지 URL을 1개 이상 입력해주세요.');
+  }
+
+  return lines.map((url, index) => {
+    const fileName = parseFilenameFromUrl(url);
+    if (!fileName) {
+      throw new Error(`${index + 1}번째 URL에서 파일명을 읽을 수 없습니다.`);
+    }
+
+    const isMultiName = fileName.startsWith('!');
+    const normalizedAnswerName = isMultiName ? fileName.slice(1) : fileName;
+    const splitAnswers = normalizedAnswerName
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (splitAnswers.length === 0) {
+      throw new Error(`${index + 1}번째 이미지의 정답 파일명이 비어 있습니다.`);
+    }
+
+    const guidance = isMultiName
+      ? '복수 정답 문제입니다. 쉼표(,)로 구분해 입력하세요. 순서/대소문자는 상관없습니다.'
+      : '파일명 정답을 입력하세요. 대소문자는 구분하지 않습니다.';
+
+    return {
+      type: 'short',
+      question: `이미지 ${index + 1}의 뼈 이름(파일명)을 입력하세요.`,
+      choices: [],
+      acceptedAnswers: splitAnswers,
+      acceptedAnswerSet: isMultiName,
+      imageUrl: url,
+      explanation: `정답: ${splitAnswers.join(', ')} (${guidance})`,
+    };
+  });
+}
+
+function normalizeCsvAnswerSet(value) {
+  return String(value)
+    .split(',')
+    .map((part) => normalize(part))
+    .filter(Boolean)
+    .sort();
 }
 
 function normalize(value) {
@@ -576,8 +658,16 @@ function setRoute(hash, { replace = false } = {}) {
 
 function openSetup({ replace = false } = {}) {
   state.currentScreen = 'setup';
+  setModeSwitch('json');
   showScreen(setupScreen);
   setRoute('#/setup', { replace });
+}
+
+function openImageSetup({ replace = false } = {}) {
+  state.currentScreen = 'image-setup';
+  setModeSwitch('image');
+  showScreen(imageSetupScreen);
+  setRoute('#/image-setup', { replace });
 }
 
 function openExam({ replace = false } = {}) {
@@ -619,6 +709,17 @@ function renderQuestion() {
   questionTitle.textContent = `문제 ${state.currentIndex + 1} (${typeLabel})`;
   questionText.textContent = q.question;
 
+  if (q.imageUrl) {
+    questionMedia.classList.remove('hidden');
+    const multiGuide = q.acceptedAnswerSet
+      ? '<p class="question-media-guide">복수 정답: 쉼표(,)로 구분해서 입력하세요. 순서/대소문자 무관</p>'
+      : '<p class="question-media-guide">대소문자 구분 없이 파일명 정답 입력</p>';
+    questionMedia.innerHTML = `<img src="${escapeHtml(q.imageUrl)}" alt="퀴즈 이미지 ${state.currentIndex + 1}" class="question-image" />${multiGuide}`;
+  } else {
+    questionMedia.classList.add('hidden');
+    questionMedia.innerHTML = '';
+  }
+
   feedbackBox.className = 'feedback hidden';
   feedbackBox.textContent = '';
 
@@ -640,8 +741,11 @@ function renderQuestion() {
       )
       .join('');
   } else if (q.type === 'short') {
+    const shortPlaceholder = q.acceptedAnswerSet
+      ? '정답들을 쉼표(,)로 구분해서 입력하세요'
+      : '정답을 입력하세요';
     answerArea.innerHTML =
-      '<input class="short-input" type="text" id="text-answer" placeholder="정답을 입력하세요" />';
+      `<input class="short-input" type="text" id="text-answer" placeholder="${shortPlaceholder}" />`;
   } else {
     answerArea.innerHTML =
       '<textarea class="essay-input" id="text-answer" placeholder="서술형 답안을 입력하세요"></textarea>';
@@ -774,6 +878,15 @@ function evaluateAnswer(userAnswer, question) {
     }
 
     return userAnswer === question.correctIndexes[0];
+  }
+
+  if (question.acceptedAnswerSet) {
+    const userSet = normalizeCsvAnswerSet(userAnswer);
+    const answerSet = question.acceptedAnswers.map((answer) => normalize(answer)).sort();
+    if (userSet.length !== answerSet.length) {
+      return false;
+    }
+    return userSet.every((value, idx) => value === answerSet[idx]);
   }
 
   return question.acceptedAnswers.some(
@@ -932,6 +1045,11 @@ function applyRouteFromHash() {
     return;
   }
 
+  if (hash === '#/image-setup') {
+    openImageSetup({ replace: true });
+    return;
+  }
+
   if (examMatch) {
     if (state.quizSet.length === 0) {
       openSetup({ replace: true });
@@ -1014,6 +1132,14 @@ saveSetBtn?.addEventListener('click', () => {
   }
 });
 
+openJsonQuizBtn?.addEventListener('click', () => {
+  openSetup();
+});
+
+openImageQuizBtn?.addEventListener('click', () => {
+  openImageSetup();
+});
+
 document.getElementById('start-btn').addEventListener('click', () => {
   setupError.textContent = '';
 
@@ -1026,6 +1152,22 @@ document.getElementById('start-btn').addEventListener('click', () => {
     startQuiz([...state.originalSet]);
   } catch (error) {
     setupError.textContent = `문제 세트 로드 실패: ${error.message}`;
+  }
+});
+
+
+startImageQuizBtn?.addEventListener('click', () => {
+  imageSetupError.textContent = '';
+
+  try {
+    const questions = parseImageQuizQuestions(imageUrlInput.value);
+    state.originalSet = questions;
+    const mode = document.querySelector('input[name="review-mode-image"]:checked').value;
+    state.reviewMode = mode;
+    state.round = 1;
+    startQuiz([...state.originalSet]);
+  } catch (error) {
+    imageSetupError.textContent = `이미지 퀴즈 로드 실패: ${error.message}`;
   }
 });
 
