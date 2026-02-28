@@ -71,6 +71,7 @@ const saveSetCancelBtn = document.getElementById('save-set-cancel-btn');
 const jsonExample = document.getElementById('json-example');
 const setupError = document.getElementById('setup-error');
 const promptTemplate = document.getElementById('prompt-template');
+const realExamPromptTemplateEl = document.getElementById('real-exam-prompt-template');
 const copyPromptBtn = document.getElementById('copy-prompt-btn');
 const copyFeedback = document.getElementById('copy-feedback');
 const copyJsonBtn = document.getElementById('copy-json-btn');
@@ -179,8 +180,58 @@ C) essay(서술형)
 
 이제 위 규칙대로 문항을 생성하라.`;
 
+const realExamAnalysisPromptTemplate = `너는 의대 기출문제(야마) 분석 및 시각 자료 데이터 구조화 전문가다.
+제공되는 (1) 기출문제/족보 (2) 복기 해설 자료를 분석하여 실제 학습이 가능한 형태의 JSON 데이터를 생성하라.
+
+[핵심 목표]
+문제와 해설을 정확히 추출하되, 특히 **이미지(그림, 사진, 도표)가 포함된 문항의 경우 시각적 요소에 대한 정밀한 분석**을 해설에 포함하고, 중요도와 출처 정보를 구조화한다.
+
+[데이터 처리 규칙]
+1. 중요도(Importance) 산출:
+   - ★★★: 3회 이상 반복 출제된 초핵심 (필수 야마)
+   - ★★☆: 2회 출제되었거나 교수님이 강조한 중요 문항
+   - ★☆☆: 1회 출제된 단발성 문항
+
+2. 출처 및 교수 정보 (Explanation 서두 배치):
+   - 해설(\`explanation\`) 시작 부분에 \`[출처: {연도/시험명} / 교수: {성함}]\` 형식을 반드시 포함하라. (정보 부재 시 '미상' 표기)
+
+3. **이미지 문항 정밀 분석 (핵심):**
+   - 문제나 해설에 그림/사진이 포함된 경우, **이미지를 보지 않고도 상황을 이해할 수 있을 정도로 시각적 특징을 텍스트로 기술**하라.
+   - 예: "CT 영상에서 우측 간엽에 저음영의 종괴가 관찰됨", "화살표가 가리키는 구조물은 정중신경(Median nerve)임", "조직 슬라이드에서 특징적인 고리 모양의 세포질이 보임" 등.
+   - 이를 바탕으로 왜 해당 보기가 정답이 되는지 논리적으로 연결하라.
+
+4. 해설 검수 및 교정:
+   - 의학적으로 명백한 오류가 있는 복기 내용은 반드시 교정하라.
+   - 교정한 부분이 있는 경우에만  "[원본 복기]: ~~~ / [수정 사항]: ~~~" 형태로 수정 근거를 명시하라.
+   - 자료에 해설이 없는 경우 최소한의 핵심 원리를 직접 작성하라.
+
+5. 누락 데이터 보완:
+   - 선지(Choices)가 누락된 경우, 동일 주제 기출이나 교안을 참고하여 5지선다를 완성하라.
+
+6. 출력 제한:
+   - **출력은 오직 JSON 배열만 반환하며, 마크다운 코드 펜스(\`\`\`json)를 포함하지 않는다.**
+
+[출력 JSON 스키마]
+[
+  {
+    "importance": "★★★", 
+    "type": "multiple" | "short" | "essay",
+    "question": "문제 내용 (그림이 있는 경우 '다음 영상/사진에 대한 설명으로~' 포함)",
+    "choices": ["선지1", "선지2", "선지3", "선지4", "선지5"],
+    "answer": "정답 문자열 또는 [정답 배열]",
+    "explanation": "[출처: {연도/시험명} / 교수: {성함}] (시각 자료 분석: 이미지의 주요 특징 묘사) (해설 내용) [원본 복기]: ~ / [수정 사항]: ~"
+  }
+]
+
+[실행 명령]
+지금부터 입력되는 자료를 분석하여 위 스키마에 맞는 JSON 데이터를 생성하라.
+===`;
+
 jsonExample.textContent = JSON.stringify(sampleJson, null, 2);
 promptTemplate.textContent = medicalPromptTemplate;
+if (realExamPromptTemplateEl) {
+  realExamPromptTemplateEl.textContent = realExamAnalysisPromptTemplate;
+}
 
 function showScreen(screen) {
   [setupScreen, imageSetupScreen, examScreen, resultScreen]
@@ -635,6 +686,7 @@ function parseQuestions(rawText) {
         correctIndexes,
         isMultiAnswer: correctIndexes.length > 1,
         explanation: item.explanation || '해설이 제공되지 않았습니다.',
+        importance: item.importance ? String(item.importance).trim() : '',
       };
     }
 
@@ -652,10 +704,23 @@ function parseQuestions(rawText) {
       choices: [],
       acceptedAnswers,
       explanation: item.explanation || '해설이 제공되지 않았습니다.',
+      importance: item.importance ? String(item.importance).trim() : '',
     };
   });
 
   return { questions, sanitizedJsonText };
+}
+
+
+function formatImportanceBadge(question) {
+  if (!question?.importance) {
+    return '';
+  }
+  const raw = String(question.importance).trim();
+  if (!raw) {
+    return '';
+  }
+  return ` ${raw}`;
 }
 
 function getCurrentQuestion() {
@@ -730,9 +795,10 @@ function renderQuestion() {
   const isImageQuizQuestion = Boolean(q.imageUrl);
   const typeLabel =
     q.type === 'multiple' ? '객관식' : q.type === 'short' ? '주관식' : '서술형';
+  const importanceBadge = formatImportanceBadge(q);
   questionTitle.textContent = isImageQuizQuestion
-    ? `이미지 ${state.currentIndex + 1}`
-    : `문제 ${state.currentIndex + 1} (${typeLabel})`;
+    ? `이미지 ${state.currentIndex + 1}${importanceBadge}`
+    : `문제 ${state.currentIndex + 1} (${typeLabel})${importanceBadge}`;
   questionText.textContent = isImageQuizQuestion ? '' : q.question;
 
   if (q.imageUrl) {
@@ -1034,7 +1100,7 @@ function renderResultContent() {
         : '';
 
     resultItem.innerHTML = `
-      <div><strong>${idx + 1}. ${escapeHtml(item.question)}</strong></div>
+      <div><strong>${idx + 1}. ${escapeHtml(item.question)}${escapeHtml(formatImportanceBadge(state.quizSet[idx]))}</strong></div>
       <div>내 답: ${escapeHtml(item.userAnswerDisplay)}</div>
       <div>${item.isCorrect ? '✅ 정답' : '❌ 오답'}</div>
       ${explanationText}
