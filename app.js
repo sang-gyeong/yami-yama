@@ -30,10 +30,6 @@ const REMOTE_BASE_URL = 'https://yami-yama-default-rtdb.firebaseio.com';
 const STORAGE_LIST_ENDPOINT =
   'https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o?maxResults=1000';
 
-if (window.location.hash === '#/image-setup') {
-  window.location.replace('image-quiz.html#/setup');
-}
-
 function buildStorageMediaUrl(name) {
   return `https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o/${encodeURIComponent(
     name,
@@ -651,6 +647,7 @@ function buildFeedbackHtml({
   userAnswerDisplay,
   correctAnswerDisplay,
   explanation,
+  includeUserAnswer = true,
 }) {
   const answerTitle =
     isCorrect === null
@@ -660,7 +657,7 @@ function buildFeedbackHtml({
         : '오답입니다.';
   return `
     <div class="feedback-title"><strong>${answerTitle}</strong></div>
-    <div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>
+    ${includeUserAnswer ? `<div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>` : ''}
     <div class="feedback-row"><strong>정답:</strong> ${escapeHtml(correctAnswerDisplay)}</div>
     <div class="feedback-row feedback-explanation"><strong>해설:</strong> ${escapeHtml(explanation)}</div>
   `;
@@ -782,6 +779,10 @@ function openSetup({ replace = false } = {}) {
 }
 
 function openImageSetup({ replace = false } = {}) {
+  if (!imageSetupScreen) {
+    return;
+  }
+
   state.currentScreen = 'image-setup';
   setModeSwitch('image');
   showScreen(imageSetupScreen);
@@ -935,6 +936,7 @@ function applySavedAnswer(answerRecord, question) {
         userAnswerDisplay: answerRecord.userAnswerDisplay,
         correctAnswerDisplay: answerRecord.correctAnswerDisplay,
         explanation: question.explanation,
+        includeUserAnswer: false,
       });
     }
   } else {
@@ -954,6 +956,7 @@ function applySavedAnswer(answerRecord, question) {
         userAnswerDisplay: answerRecord.userAnswerDisplay,
         correctAnswerDisplay: answerRecord.correctAnswerDisplay,
         explanation: question.explanation,
+        includeUserAnswer: false,
       });
     }
   }
@@ -1183,8 +1186,10 @@ function applyRouteFromHash() {
   }
 
   if (hash === '#/image-setup') {
-    openImageSetup({ replace: true });
-    return;
+    if (imageSetupScreen) {
+      openImageSetup({ replace: true });
+      return;
+    }
   }
 
   if (examMatch) {

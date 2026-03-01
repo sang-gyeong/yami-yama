@@ -219,6 +219,7 @@ function renderQuestion() {
         userAnswerDisplay: existing.userAnswerDisplay,
         correctAnswerDisplay: existing.correctAnswerDisplay,
         explanation: q.explanation,
+        includeUserAnswer: false,
       });
     }
 
@@ -251,11 +252,12 @@ function buildFeedbackHtml({
   userAnswerDisplay,
   correctAnswerDisplay,
   explanation,
+  includeUserAnswer = true,
 }) {
   const answerTitle = isCorrect ? '정답입니다!' : '오답입니다.';
   return `
     <div class="feedback-title"><strong>${answerTitle}</strong></div>
-    <div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>
+    ${includeUserAnswer ? `<div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>` : ''}
     <div class="feedback-row"><strong>정답:</strong> ${escapeHtml(correctAnswerDisplay)}</div>
     <div class="feedback-row"><strong>해설:</strong> ${escapeHtml(explanation)}</div>
   `;
@@ -293,6 +295,7 @@ function handleSubmit() {
       userAnswerDisplay: userAnswer,
       correctAnswerDisplay,
       explanation: q.explanation,
+      includeUserAnswer: false,
     });
   }
 
