@@ -614,6 +614,14 @@ function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
   return [...new Set(mappedIndexes)].sort((a, b) => a - b);
 }
 
+function isUnavailableAnswerMarker(value) {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  const compact = normalize(String(value)).replace(/\s+/g, '');
+  return compact.includes('정답확인불가') || compact.includes('자료누락');
+}
+
 function formatMultipleAnswer(indexes, choices, { useChoiceText = false } = {}) {
   if (useChoiceText) {
     return indexes.map((idx) => String(choices[idx] ?? '')).join(' / ');
@@ -626,6 +634,10 @@ function formatTextAnswer(answers) {
 }
 
 function getCorrectAnswerDisplay(question, { useChoiceText = false } = {}) {
+  if (question.isUnverifiableAnswer) {
+    return question.unverifiableAnswerText || '정답 확인 불가';
+  }
+
   if (question.type === 'multiple') {
     return formatMultipleAnswer(question.correctIndexes, question.choices, {
       useChoiceText,
@@ -640,7 +652,12 @@ function buildFeedbackHtml({
   correctAnswerDisplay,
   explanation,
 }) {
-  const answerTitle = isCorrect ? '정답입니다!' : '오답입니다.';
+  const answerTitle =
+    isCorrect === null
+      ? '정답 확인 불가 문항입니다.'
+      : isCorrect
+        ? '정답입니다!'
+        : '오답입니다.';
   return `
     <div class="feedback-title"><strong>${answerTitle}</strong></div>
     <div class="feedback-row"><strong>내 답:</strong> ${escapeHtml(userAnswerDisplay)}</div>
@@ -674,17 +691,30 @@ function parseQuestions(rawText) {
         );
       }
 
-      const correctIndexes = parseMultipleAnswerIndexes(
-        item.answer,
-        item.choices,
-        index,
-      );
+      const answerCandidates = toArray(item.answer);
+      const hasUnavailableAnswer =
+        answerCandidates.length === 1 &&
+        isUnavailableAnswerMarker(answerCandidates[0]);
+      const correctIndexes = hasUnavailableAnswer
+        ? []
+        : parseMultipleAnswerIndexes(item.answer, item.choices, index);
+
+      if (!hasUnavailableAnswer && correctIndexes.length === 0) {
+        throw new Error(
+          `${index + 1}번 객관식 문제의 answer가 비어 있습니다.`,
+        );
+      }
+
       return {
         type: item.type,
         question: item.question,
         choices: item.choices,
         correctIndexes,
         isMultiAnswer: correctIndexes.length > 1,
+        isUnverifiableAnswer: hasUnavailableAnswer,
+        unverifiableAnswerText: hasUnavailableAnswer
+          ? String(answerCandidates[0]).trim() || '정답 확인 불가'
+          : '',
         explanation: item.explanation || '해설이 제공되지 않았습니다.',
         importance: item.importance ? String(item.importance).trim() : '',
       };
@@ -955,6 +985,10 @@ function collectUserAnswer() {
 }
 
 function evaluateAnswer(userAnswer, question) {
+  if (question.isUnverifiableAnswer) {
+    return null;
+  }
+
   if (question.type === 'multiple') {
     if (question.isMultiAnswer) {
       if (
@@ -1043,7 +1077,10 @@ function handleSubmit() {
   };
 
   if (state.reviewMode === 'immediate') {
-    feedbackBox.className = `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+    feedbackBox.className =
+      isCorrect === null
+        ? 'feedback'
+        : `feedback ${isCorrect ? 'correct' : 'incorrect'}`;
     feedbackBox.innerHTML = buildFeedbackHtml({
       isCorrect,
       userAnswerDisplay,
@@ -1051,9 +1088,9 @@ function handleSubmit() {
       explanation: question.explanation,
     });
 
-    if (question.type === 'multiple') {
+    if (question.type === 'multiple' && isCorrect !== null) {
       paintChoiceResult(question, userAnswer);
-    } else {
+    } else if (isCorrect !== null) {
       paintTextResult(isCorrect);
     }
   }
@@ -1076,22 +1113,30 @@ function goNext() {
 
 function renderResultContent() {
   const total = state.answers.length;
-  const correct = state.answers.filter((a) => a.isCorrect).length;
-  const wrong = total - correct;
-  const score = Math.round((correct / total) * 100);
+  const scorableAnswers = state.answers.filter((a) => a.isCorrect !== null);
+  const scorableTotal = scorableAnswers.length;
+  const correct = scorableAnswers.filter((a) => a.isCorrect).length;
+  const wrong = scorableTotal - correct;
+  const unverifiableCount = total - scorableTotal;
+  const score =
+    scorableTotal === 0 ? 0 : Math.round((correct / scorableTotal) * 100);
 
   resultSummary.innerHTML = `
-    <strong>점수:</strong> ${score}점 (${correct} / ${total} 정답)<br/>
-    <strong>오답:</strong> ${wrong}개
+    <strong>점수:</strong> ${score}점 (${correct} / ${scorableTotal} 정답)<br/>
+    <strong>오답:</strong> ${wrong}개${
+      unverifiableCount > 0
+        ? `<br/><strong>정답 확인 불가:</strong> ${unverifiableCount}개`
+        : ''
+    }
   `;
 
   resultList.innerHTML = '';
   state.answers.forEach((item, idx) => {
     const resultItem = document.createElement('div');
-    resultItem.className = `result-item ${item.isCorrect ? '' : 'incorrect'}`;
+    resultItem.className = `result-item ${item.isCorrect === false ? 'incorrect' : ''}`;
 
     const explanationText =
-      state.reviewMode === 'end' || !item.isCorrect
+      state.reviewMode === 'end' || item.isCorrect !== true
         ? `<div><strong>정답:</strong> ${escapeHtml(
             item.correctAnswerDisplay,
           )}</div><div><strong>해설:</strong> ${escapeHtml(
@@ -1102,7 +1147,7 @@ function renderResultContent() {
     resultItem.innerHTML = `
       <div><strong>${idx + 1}. ${escapeHtml(item.question)}${escapeHtml(formatImportanceBadge(state.quizSet[idx]))}</strong></div>
       <div>내 답: ${escapeHtml(item.userAnswerDisplay)}</div>
-      <div>${item.isCorrect ? '✅ 정답' : '❌ 오답'}</div>
+      <div>${item.isCorrect === null ? '⚪ 정답 확인 불가' : item.isCorrect ? '✅ 정답' : '❌ 오답'}</div>
       ${explanationText}
     `;
 
