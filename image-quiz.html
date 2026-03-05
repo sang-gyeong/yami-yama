@@ -47,6 +47,26 @@
             </label>
           </div>
 
+          <div class="options">
+            <h3>카테고리 선택 (복수 선택 가능)</h3>
+            <label><input type="checkbox" name="category" value="skull" checked /> Skull (머리뼈 및 뇌신경/혈관)</label>
+            <label><input type="checkbox" name="category" value="vrs" checked /> VRS (척추·갈비·복장뼈)</label>
+            <label><input type="checkbox" name="category" value="upperLimb" checked /> Upper Limb (팔뼈)</label>
+            <label><input type="checkbox" name="category" value="lowerLimb" checked /> Lower Limb (다리뼈 및 골반)</label>
+          </div>
+
+          <div class="options">
+            <h3>문제 순서</h3>
+            <label>
+              <input type="radio" name="order-mode" value="random" />
+              문제 순서 랜덤하게 풀기
+            </label>
+            <label>
+              <input type="radio" name="order-mode" value="ordered" checked />
+              문제 순서 유지하며 풀기 (파일명 순서)
+            </label>
+          </div>
+
           <div class="actions">
             <button id="start-btn" class="primary">퀴즈 시작</button>
           </div>
