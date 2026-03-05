@@ -1,12 +1,30 @@
 const STORAGE_LIST_ENDPOINT =
   'https://firebasestorage.googleapis.com/v0/b/yami-yama.firebasestorage.app/o?maxResults=1000';
 
+
+const CATEGORY_BASE_NAMES = {
+  skull: new Set([
+    '!facial, vestibulocochlear','!glossopharyngeal, vagus, accessory_2','!glossopharyngeal, vagus, accessory','!mandibular, lesser petrosal','!oculomotor, trochlear, opthalmic, abducent','anterior clinoid process','articular tubercle_2','articular tubercle','atlantooccipital joint','carotid artery','carotid canal_2','carotid canal','condylar process_2','condylar process','coronoid process_2','coronoid process_3','coronoid process','cribriform plate','crista galli','external occipital crest','external occipital protuberance','facial_2','falx cerebri','foramen lacerum_2','foramen lacerum','foramen magnum','foramen ovale_2','foramen ovale','foramen spinosum_2','foramen spinosum','greater palatine foramen','greater palatine nerve','greater petrosal nerve_2','greater petrosal nerve_3','greater petrosal nerve','hypophyseal fossa','incisive fossa','inferior nuchal line','infraorbital foramen','infraorbital nerve','inion','internal acoustic meatus','jugular foramen','lateral plate of pterygoid process','lesser palatine foramen','lesser petrosal nerve','mandibular foramen','mandibular fossa_2','mandibular fossa','mandibular notch','medial plate of pterygoid process','middle meningeal artery_2','middle meningeal artery_3','middle meningeal artery','mylohyoid groove','olfactory nerve','optic canal','optic nerve','sigmoid sinus','styloid process_2','styloid process_3','styloid process','stylomastoid foramen','superior nuchal line','superior orbital fissure','superior sagittal sinus','supraorbital notch','temporomandibular joint','transverse sinus','vestibulocochlear','vomer','zygomaticofacial foramen',
+  ]),
+  lowerLimb: new Set([
+    'acetabular fossa','adductor tubercle','anterior border_2','anterior border','anterior gluteal line','anterior inferior iliac spine','anterior intercondylar area','anterior superior iliac spine','arcuate line','auricular surface_2','auricular surface','calcaneus','cuboid','distal interphalangeal joint','distal phalanx','fovea of head of femur','gluteal tuberosity','greater sciatic notch','greater trochanter_2','greater trochanter','iliac crest','iliac fossa','iliac tubercle','iliopubic eminence','inferior gluteal line','inferior ramus of pubis','intercondylar eminence','intercondylar fossa','intercondylar line','intermediate cuneiform','interosseous border_2','interosseous border_3','interosseous border_4','interosseous border_5','interosseous border','intertrochanteric crest','intertrochanteric line','ischial spine_2','ischial spine','ischial tuberosity','lateral condyle','lateral cuneiform','lateral epicondyle_2','lateral epicondyle_3','lateral epicondyle','lateral supracondylar line','left femur','left fibula_2','left fibula_3','left fibula','left pelvis_2','left pelvis_3','left pelvis_4','left pelvis','left tibia_2','left tibia','lesser sciatic notch','lesser trochanter_2','lesser trochanter','linea aspera','lunate surface','medial border_2','medial border','medial condyle','medial cuneiform','medial epicondyle_2','medial epicondyle','medial malleolus','medial supracondylar line','metatarsophalangeal joint','middle phalanx','navicular','patellar surface','pectineal line','posterior gluteal line','posterior inferior iliac spine','posterior intercondylar area','posterior superior iliac spine','proximal interphalangeal joint','proximal phalanx','pubic crest','pubic tubercle','right femur_2','right femur','right fibula_2','right fibula_3','right fibula_4','right fibula','right pelvis_2','right pelvis_3','right pelvis','right tibia','superior ramus of pubis','symphyseal surface','talus','tarsometatarsal joint','tibial tuberosity_2','tibial tuberosity',
+  ]),
+  upperLimb: new Set([
+    'acromial end','acromioclavicular joint','acromion_2','acromion_3','acromion','anterior border_2','anterior border','capitate_2','capitate','capitulum','conoid tubercle','coracoid process_2','coracoid process_3','coracoid process','coronoid fossa','coronoid process_2','coronoid process_3','coronoid process','deltoid tuberosity','distal interphalangeal joint','distal phalanx','glenoid fossa','greater tubercle_2','greater tubercle','groove for radial nerve','hamate_2','hamate','impression of costoclavicular ligament','inferior angle_2','inferior angle','infraglenoid tubercle','infraspinous fossa','interosseous border_2','interosseous border_3','interosseous border_4','interosseous border_5','interosseous border','intertubercular groove','lateral angle','lateral epicondyle_2','lateral epicondyle_3','lateral epicondyle','lateral supracondylar ridge','left clavicle_2','left clavicle','left radius_2','left radius_3','left radius_4','left radius','left ulna_2','left ulna_3','left ulna_4','left ulna','lunate surface','lunate_2','lunate','medial border_2','medial border','medial epicondyle_2','medial epicondyle','metacarpal bone','middle phalanx','olecranon fossa','pisiform_2','pisiform','proximal interphalangeal joint','proximal phalanx','radial fossa','radial notch','radial tuberosity','radius','right clavicle_2','right clavicle','right humerus','right radius_3','right radius','right scapula','right ulna_2','right ulna_3','right ulna','scaphoid_2','scaphoid','scapular notch','spine of scapula','sternal end','sternal facet','sternoclavicular joint','styloid process_2','styloid process_3','styloid process','subscapular fossa_2','subscapular fossa','superior angle','superior border','supraglenoid tubercle','supraspinous fossa','surgical neck of humerus','trapezium_2','trapezium','trapezoid_2','trapezoid','triquetrum_2','triquetrum','trochlea','trochlear notch','tuberosity of ulna','ulnar notch',
+  ]),
+  vrs: new Set([
+    'accessory process','anterior tubercle_2','anterior tubercle','articular facet','atlas','auricular surface_2','auricular surface','axis','body of sternum','body of vertebra','clavicular notch','coccynx','costal groove','costal notch','costal tubercle','dens','dorsal sacral foramen','facet for dens','groove for subclavian artery','groove for subclavian vein','groove for vertebral artery','head of rib','inferior articular process','inferior costal facet','inferior vertebral notch','intercostal artery','intercostal nerve','intercostal vein','intermediate sacral crest','jugular notch','lamina','lateral sacral crest','lumbar vertebra','mammilary process','manubrium','median sacral crest','neck of rib','pedicle_2','pedicle','pelvic sacral foramen','posterior arch','posterior tubercle_2','posterior tubercle','sacral canal','sacral cornu','sacral hiatus','sacral promontory_2','sacral promontory','scalene tubercle','single facet on head','spinous process','sternal angle','superior articular process','superior costal facet','thoracic vertebra','transverse costal facet','transverse foramen','transverse line','uncinate process','vertebral foramen','xiphoid process',
+  ]),
+};
+
 const state = {
   originalSet: [],
   quizSet: [],
   answers: [],
   currentIndex: 0,
   reviewMode: 'immediate',
+  orderMode: 'ordered',
+  selectedCategories: ['skull', 'lowerLimb', 'upperLimb', 'vrs'],
 };
 
 const setupScreen = document.getElementById('setup-screen');
@@ -72,8 +90,16 @@ function parseFileNameFromUrl(urlText) {
   return file.replace(/\.webp$/i, '').trim();
 }
 
-function buildQuestionsFromUrls(urls) {
-  return urls.map((url, index) => {
+function getCategoryKeyFromFileName(fileName) {
+  const base = String(fileName).replace(/\.webp$/i, '').trim();
+  const category = Object.keys(CATEGORY_BASE_NAMES).find((key) => CATEGORY_BASE_NAMES[key].has(base));
+  return category || null;
+}
+
+function buildQuestionsFromItems(items) {
+  return items.map((item, index) => {
+    const fileName = String(item?.name || '').trim();
+    const url = buildStorageMediaUrl(fileName);
     const answerToken = parseFileNameFromUrl(url);
     if (!answerToken) {
       throw new Error(`${index + 1}번째 항목이 .webp 이미지 URL이 아닙니다.`);
@@ -94,6 +120,8 @@ function buildQuestionsFromUrls(urls) {
       type: 'short',
       question: '',
       imageUrl: url,
+      fileName,
+      categoryKey: getCategoryKeyFromFileName(fileName),
       acceptedAnswers,
       acceptedAnswerSet: isMulti,
       explanation: isMulti
@@ -117,16 +145,15 @@ async function loadDefaultImageQuizSet() {
 
   const payload = await response.json();
   const items = Array.isArray(payload?.items) ? payload.items : [];
-  const urls = items
-    .map((item) => String(item?.name || '').trim())
-    .filter((name) => name.toLowerCase().endsWith('.webp'))
-    .map(buildStorageMediaUrl);
+  const filteredItems = items
+    .filter((item) => String(item?.name || '').trim().toLowerCase().endsWith('.webp'))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'en'));
 
-  if (urls.length === 0) {
+  if (filteredItems.length === 0) {
     throw new Error('기본 이미지 목록에서 .webp 파일을 찾지 못했습니다.');
   }
 
-  return buildQuestionsFromUrls(urls);
+  return buildQuestionsFromItems(filteredItems);
 }
 
 function getCurrentQuestion() {
@@ -353,6 +380,29 @@ function renderResultContent() {
   document.getElementById('retry-wrong-btn').classList.toggle('hidden', wrong === 0);
 }
 
+function shuffleArray(items) {
+  const cloned = [...items];
+  for (let i = cloned.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cloned[i], cloned[j]] = [cloned[j], cloned[i]];
+  }
+  return cloned;
+}
+
+function prepareQuestions(questions) {
+  const selected = questions.filter((q) => state.selectedCategories.includes(q.categoryKey));
+
+  if (selected.length === 0) {
+    throw new Error('선택한 카테고리에 해당하는 문제가 없습니다. 카테고리를 다시 선택해주세요.');
+  }
+
+  if (state.orderMode === 'random') {
+    return shuffleArray(selected);
+  }
+
+  return [...selected].sort((a, b) => a.fileName.localeCompare(b.fileName, 'en'));
+}
+
 function startQuiz(questions) {
   state.quizSet = questions;
   state.answers = new Array(questions.length);
@@ -399,11 +449,22 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 
   try {
     const mode = document.querySelector('input[name="review-mode"]:checked').value;
+    const orderMode = document.querySelector('input[name="order-mode"]:checked').value;
+    const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(
+      (el) => el.value,
+    );
+
+    if (selectedCategories.length === 0) {
+      throw new Error('최소 1개 이상의 카테고리를 선택해주세요.');
+    }
+
     state.reviewMode = mode;
+    state.orderMode = orderMode;
+    state.selectedCategories = selectedCategories;
 
     const questions = await loadDefaultImageQuizSet();
     state.originalSet = questions;
-    startQuiz([...state.originalSet]);
+    startQuiz(prepareQuestions(state.originalSet));
   } catch (error) {
     setupError.textContent = `퀴즈 시작 실패: ${error.message}`;
   }
@@ -414,7 +475,7 @@ nextBtn.addEventListener('click', goNext);
 finishBtn.addEventListener('click', () => openResult());
 
 document.getElementById('retry-all-btn').addEventListener('click', () => {
-  startQuiz([...state.originalSet]);
+  startQuiz(prepareQuestions(state.originalSet));
 });
 
 document.getElementById('retry-wrong-btn').addEventListener('click', () => {
@@ -428,7 +489,7 @@ document.getElementById('retry-wrong-btn').addEventListener('click', () => {
     return;
   }
 
-  startQuiz(wrongQuestions);
+  startQuiz(state.orderMode === 'random' ? shuffleArray(wrongQuestions) : wrongQuestions);
 });
 
 document.getElementById('go-home-btn').addEventListener('click', () => openSetup());
