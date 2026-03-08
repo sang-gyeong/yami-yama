@@ -504,11 +504,12 @@ function saveQuestionSet(rawJson, questionCount, titleInput = '') {
   void syncLocalSetsToRemote('새 세트 저장');
 }
 
-function extractFirstJsonArray(rawText) {
+function extractJsonArrays(rawText) {
   let inString = false;
   let escapeNext = false;
   let depth = 0;
   let start = -1;
+  const arrays = [];
 
   for (let index = 0; index < rawText.length; index += 1) {
     const char = rawText[index];
@@ -544,21 +545,51 @@ function extractFirstJsonArray(rawText) {
       if (depth > 0) {
         depth -= 1;
         if (depth === 0 && start !== -1) {
-          return rawText.slice(start, index + 1);
+          arrays.push(rawText.slice(start, index + 1));
+          start = -1;
         }
       }
     }
   }
 
-  return rawText;
+  return arrays;
 }
 
 function sanitizeJsonInput(rawText) {
   const withoutFence = rawText
-    .replace(/^\s*```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
+    .replace(/```(?:json)?/gi, '')
     .trim();
-  return extractFirstJsonArray(withoutFence).trim();
+  const extractedArrays = extractJsonArrays(withoutFence);
+  return {
+    combinedJsonText:
+      extractedArrays.length > 0
+        ? `[${extractedArrays.map((chunk) => chunk.trim().slice(1, -1)).join(',')}]`
+        : withoutFence,
+    extractedArrayCount: extractedArrays.length,
+  };
+}
+
+function sanitizeQuestionItem(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    return item;
+  }
+
+  return Object.fromEntries(
+    Object.entries(item).filter(([key]) => !String(key).startsWith('_meta')),
+  );
+}
+
+function sanitizeExplanationText(value) {
+  const text = String(value ?? '').trim();
+  if (!text) {
+    return '해설이 제공되지 않았습니다.';
+  }
+
+  return text
+    .replace(/(?:^|\n)\s*내\s*정답\s*[:：].*(?=\n|$)/gi, '')
+    .replace(/내\s*정답\s*[:：]\s*/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim() || '해설이 제공되지 않았습니다.';
 }
 
 function parseMultipleAnswerIndexes(answer, choices, questionIndex) {
@@ -664,14 +695,16 @@ function buildFeedbackHtml({
 }
 
 function parseQuestions(rawText) {
-  const sanitizedJsonText = sanitizeJsonInput(rawText);
-  const parsed = JSON.parse(sanitizedJsonText);
+  const { combinedJsonText, extractedArrayCount } = sanitizeJsonInput(rawText);
+  const parsed = JSON.parse(combinedJsonText);
 
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new Error('JSON은 비어있지 않은 배열이어야 합니다.');
   }
 
-  const questions = parsed.map((item, index) => {
+  const mergedItems = parsed.map((item) => sanitizeQuestionItem(item));
+
+  const questions = mergedItems.map((item, index) => {
     if (!['multiple', 'short', 'essay'].includes(item.type)) {
       throw new Error(
         `${index + 1}번 문제의 type은 multiple, short, essay 중 하나여야 합니다.`,
@@ -712,7 +745,7 @@ function parseQuestions(rawText) {
         unverifiableAnswerText: hasUnavailableAnswer
           ? String(answerCandidates[0]).trim() || '정답 확인 불가'
           : '',
-        explanation: item.explanation || '해설이 제공되지 않았습니다.',
+        explanation: sanitizeExplanationText(item.explanation),
         importance: item.importance ? String(item.importance).trim() : '',
       };
     }
@@ -730,12 +763,16 @@ function parseQuestions(rawText) {
       question: item.question,
       choices: [],
       acceptedAnswers,
-      explanation: item.explanation || '해설이 제공되지 않았습니다.',
+      explanation: sanitizeExplanationText(item.explanation),
       importance: item.importance ? String(item.importance).trim() : '',
     };
   });
 
-  return { questions, sanitizedJsonText };
+  return {
+    questions,
+    sanitizedJsonText: combinedJsonText,
+    extractedArrayCount,
+  };
 }
 
 
