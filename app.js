@@ -70,6 +70,8 @@ const promptTemplate = document.getElementById('prompt-template');
 const realExamPromptTemplateEl = document.getElementById('real-exam-prompt-template');
 const copyPromptBtn = document.getElementById('copy-prompt-btn');
 const copyFeedback = document.getElementById('copy-feedback');
+const copyRealExamPromptBtn = document.getElementById('copy-real-exam-prompt-btn');
+const realExamCopyFeedback = document.getElementById('real-exam-copy-feedback');
 const copyJsonBtn = document.getElementById('copy-json-btn');
 const jsonCopyFeedback = document.getElementById('json-copy-feedback');
 const openGuideBtn = document.getElementById('open-guide-btn');
@@ -177,51 +179,105 @@ C) essay(서술형)
 이제 위 규칙대로 문항을 생성하라.`;
 
 const realExamAnalysisPromptTemplate = `너는 의대 기출문제(야마) 분석 및 시각 자료 데이터 구조화 전문가다.
-제공되는 (1) 기출문제/족보 (2) 복기 해설 자료를 분석하여 실제 학습이 가능한 형태의 JSON 데이터를 생성하라.
+제공되는 (1) 기출문제/족보 (2) 복기 해설 자료를 분석하여 실제 학습 가능한 형태의 JSON 데이터를 생성하라.
 
 [핵심 목표]
-문제와 해설을 정확히 추출하되, 특히 **이미지(그림, 사진, 도표)가 포함된 문항의 경우 시각적 요소에 대한 정밀한 분석**을 해설에 포함하고, 중요도와 출처 정보를 구조화한다.
+문제와 해설을 정확히 추출하되, 이미지(그림, 사진, 도표)가 포함된 문항은 시각적 요소를 분석해 해설에 반영하고, 중요도와 출처 정보를 구조화하라.
+또한 실제 출제된 문제를 중복 여부와 관계없이 가능한 한 전부 복원하라. 선택된 소스에 강의자료/수업자료/강의녹음이 포함된 경우에는, 그 자료가 다루는 범위의 실제 기출문제만 도출하라.
 
 [데이터 처리 규칙]
-1. 중요도(Importance) 산출:
-   - ★★★: 3회 이상 반복 출제된 초핵심 (필수 야마)
-   - ★★☆: 2회 출제되었거나 교수님이 강조한 중요 문항
-   - ★☆☆: 1회 출제된 단발성 문항
 
-2. 출처 및 교수 정보 (Explanation 서두 배치):
-   - 해설(\`explanation\`) 시작 부분에 \`[출처: {연도/시험명} / 교수: {성함}]\` 형식을 반드시 포함하라. (정보 부재 시 '미상' 표기)
+1. 중요도
+* ★★★: 3회 이상 반복 출제
+* ★★☆: 2회 출제 또는 교수 강조
+* ★☆☆: 1회 출제
 
-3. **이미지 문항 정밀 분석 (핵심):**
-   - 문제나 해설에 그림/사진이 포함된 경우, **이미지를 보지 않고도 상황을 이해할 수 있을 정도로 시각적 특징을 텍스트로 기술**하라.
-   - 예: "CT 영상에서 우측 간엽에 저음영의 종괴가 관찰됨", "화살표가 가리키는 구조물은 정중신경(Median nerve)임", "조직 슬라이드에서 특징적인 고리 모양의 세포질이 보임" 등.
-   - 이를 바탕으로 왜 해당 보기가 정답이 되는지 논리적으로 연결하라.
+2. 출처 및 교수 정보
+* explanation 시작에 [출처: {연도/시험명} / 교수: {성함}] 형식을 넣고, 정보가 없으면 미상으로 표기하라.
 
-4. 해설 검수 및 교정:
-   - 의학적으로 명백한 오류가 있는 복기 내용은 반드시 교정하라.
-   - 교정한 부분이 있는 경우에만  "[원본 복기]: ~~~ / [수정 사항]: ~~~" 형태로 수정 근거를 명시하라.
-   - 자료에 해설이 없는 경우 최소한의 핵심 원리를 직접 작성하라.
+3. 이미지 문항 분석
+* 그림/사진이 포함된 경우, 이미지를 보지 않고도 이해할 수 있을 정도로 시각적 특징을 텍스트로 설명하라.
+* 예: "CT 영상에서 우측 간엽에 저음영 종괴가 보임", "화살표가 가리키는 구조물은 정중신경임", "조직 슬라이드에서 고리 모양 세포질이 보임"
+* 이를 바탕으로 정답 근거를 연결하라.
+* 해설은 핵심 위주로 간결하게 작성하라.
 
-5. 누락 데이터 보완:
-   - 선지(Choices)가 누락된 경우, 동일 주제 기출이나 교안을 참고하여 5지선다를 완성하라.
+4. 해설 검수
+* 복기 내용에 명백한 오류가 있으면 교정하라.
+* 교정이 있을 때만 "[원본 복기]: ~~~ / [수정 사항]: ~~~"를 explanation 끝에 추가하라.
+* 교정이 없으면 해당 부분은 생략하라.
+* 해설이 없으면 핵심 원리를 짧게 보완하라.
 
-6. 출력 제한:
-   - **출력은 오직 JSON 배열만 반환하며, 마크다운 코드 펜스(\`\`\`json)를 포함하지 않는다.**
+5. 누락 보완
+* 선지(choices)가 누락된 경우에만 동일 주제 기출이나 교안을 참고해 5지선다를 보완하라.
+* 단, 실제 출제 의도와 정답은 바꾸지 마라.
+
+6. 범위 제한
+* 강의자료/교안/강의녹음이 없으면 확인 가능한 실제 출제 문제 전체를 출력하라.
+* 강의자료/교안/강의녹음이 있으면 그 범위에 해당하는 실제 기출문제만 출력하라.
+* 이 자료들은 범위를 판정하는 기준으로 사용하라.
+* 범위와 대응되는 실제 기출문제는 포함하고, 범위 밖 문제는 제외하라.
+* 예상문제, 변형문제, 신규문제는 생성하지 마라.
+* 문제의 선지와 정답은 바꾸지 마라.
+
+7. 범위 판정
+* 강의자료/녹음의 제목, 소단원, 핵심 개념, 교수 설명, 예시 구조를 기준으로 범위를 정하라.
+* 표현이 직접 일치하지 않아도 동일 개념·동일 단원·동일 학습목표면 포함하라.
+* 비슷한 용어만 있고 실제로 다른 단원이면 제외하라.
+* 애매한 경우 판단 근거를 explanation 또는 meta에 짧게 반영하라.
+
+8. 전체 문항 복원
+* 자료 전체를 검토하여 범위에 해당하는 실제 출제 문제를 가능한 한 모두 추출하라.
+* 중복처럼 보여도 삭제·통합하지 말고 별도 문항으로 유지하라.
+* 같은 질문과 정답이라도 다른 연도·시험·복기 출처에서 실제 출제되었다면 각각 유지하라.
+* 출력 개수를 임의로 제한하지 말고, 확인 가능한 실제 기출문항을 JSON 배열에 넣어라.
+
+9. 정답 표기 및 검증
+* 객관식(type = "multiple")의 answer는 정답 번호만 출력하라. 예: "answer": 3
+* 복수정답이면 배열로 출력하라. 예: "answer": [2,5]
+* 단답형/서술형은 문자열 또는 배열을 사용해도 된다.
+* answer는 반드시 choices에 대응되는 번호여야 한다.
+* 확정이 안 되면 비워두지 말고 문제 파일과 해설 파일을 다시 대조해 확정하라.
+
+10. 출력 형식
+* 출력은 JSON 배열만 반환하고, 코드 펜스는 사용하지 마라.
+* 배열 뒤에 설명문은 붙이지 마라.
+* 배열 마지막에는 진행 상태를 담은 _meta 객체 1개를 추가하라.
 
 [출력 JSON 스키마]
 [
   {
-    "importance": "★★★", 
+    "importance": "★★★",
     "type": "multiple" | "short" | "essay",
     "question": "문제 내용 (그림이 있는 경우 '다음 영상/사진에 대한 설명으로~' 포함)",
     "choices": ["선지1", "선지2", "선지3", "선지4", "선지5"],
-    "answer": "정답 문자열 또는 [정답 배열]",
-    "explanation": "[출처: {연도/시험명} / 교수: {성함}] (시각 자료 분석: 이미지의 주요 특징 묘사) (해설 내용) [원본 복기]: ~ / [수정 사항]: ~"
+    "answer": 3,
+    "explanation": "[출처: {연도/시험명} / 교수: {성함}] [중요도 근거: 3회 이상 반복 출제 / 2회 출제 / 교수 강조 / 1회 출제] (시각 자료 분석) (핵심 해설) [원본 복기]: ~ / [수정 사항]: ~"
+  },
+  {
+    "_meta": {
+      "total_target_questions": 52,
+      "current_batch_extracted": 15,
+      "cumulative_extracted": 15,
+      "remaining_questions": 37,
+      "next_start_index": 16,
+      "progress_info": "전체 52문제 중 15문제 출력 완료. '계속'이라고 하면 이어서 출력."
+    }
   }
 ]
 
+[추가 규칙]
+* choices는 객관식에만 넣고, 단답형/서술형은 필요 시 생략 가능하다.
+* explanation은 간결하게 쓰되 정답 근거는 드러나야 한다.
+* [원본 복기] / [수정 사항]은 교정이 있을 때만 포함하라.
+
 [실행 명령]
-지금부터 입력되는 자료를 분석하여 위 스키마에 맞는 JSON 데이터를 생성하라.
-===`;
+지금부터 자료를 분석해 위 스키마로 JSON을 생성하라.
+강의자료/녹음이 포함된 경우에는 그 범위의 실제 기출문제만 추출하고 범위 밖 문제는 제외하라.
+한 번에 전부 출력하지 못하면 배열 마지막에 _meta를 넣고, total_target_questions, current_batch_extracted, cumulative_extracted, remaining_questions, next_start_index, progress_info를 채워라.
+사용자가 "계속"이라고 말하면 직전 _meta.next_start_index 다음 문제부터 이어서 출력하라.
+
+중요: 자료 전체를 끝까지 검토한 뒤, 범위 내 실제 기출문항을 중복 포함하여 빠뜨리지 말고 배열에 포함하라. 출력 전에는 choices와 answer의 정합성을 확인하라.
+문제(question)·선지(choices)·정답(answer)은 문제 파일 원문 기준으로, 해설(explanation)은 해설/복기 파일 기준으로 작성하라.`;
 
 jsonExample.textContent = JSON.stringify(sampleJson, null, 2);
 promptTemplate.textContent = medicalPromptTemplate;
@@ -1407,6 +1463,20 @@ copyPromptBtn?.addEventListener('click', async () => {
     copyFeedback.textContent = '프롬프트가 복사되었어요.';
   } catch {
     copyFeedback.textContent = '복사에 실패했어요. 직접 선택해서 복사해주세요.';
+  }
+});
+
+copyRealExamPromptBtn?.addEventListener('click', async () => {
+  if (!realExamCopyFeedback) {
+    return;
+  }
+
+  realExamCopyFeedback.textContent = '';
+  try {
+    await navigator.clipboard.writeText(realExamAnalysisPromptTemplate);
+    realExamCopyFeedback.textContent = '프롬프트가 복사되었어요.';
+  } catch {
+    realExamCopyFeedback.textContent = '복사에 실패했어요. 직접 선택해서 복사해주세요.';
   }
 });
 
