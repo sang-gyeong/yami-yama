@@ -570,13 +570,27 @@ function sanitizeJsonInput(rawText) {
 }
 
 function sanitizeQuestionItem(item) {
-  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+  if (!item || typeof item !== 'object') {
     return item;
   }
 
+  if (Array.isArray(item)) {
+    return item.map((entry) => sanitizeQuestionItem(entry));
+  }
+
   return Object.fromEntries(
-    Object.entries(item).filter(([key]) => !String(key).startsWith('_meta')),
+    Object.entries(item)
+      .filter(([key]) => !String(key).trim().toLowerCase().includes('_meta'))
+      .map(([key, value]) => [key, sanitizeQuestionItem(value)]),
   );
+}
+
+function hasQuestionPayload(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    return false;
+  }
+
+  return Object.keys(item).length > 0;
 }
 
 function sanitizeExplanationText(value) {
@@ -702,7 +716,13 @@ function parseQuestions(rawText) {
     throw new Error('JSON은 비어있지 않은 배열이어야 합니다.');
   }
 
-  const mergedItems = parsed.map((item) => sanitizeQuestionItem(item));
+  const mergedItems = parsed
+    .map((item) => sanitizeQuestionItem(item))
+    .filter((item) => hasQuestionPayload(item));
+
+  if (mergedItems.length === 0) {
+    throw new Error('메타 정보만 있는 JSON입니다. 문제 데이터를 확인해주세요.');
+  }
 
   const questions = mergedItems.map((item, index) => {
     if (!['multiple', 'short', 'essay'].includes(item.type)) {
