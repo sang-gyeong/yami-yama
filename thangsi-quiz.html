@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>야미야마 - 골학 땡시 퀴즈</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="thangsi-quiz.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-header">
+        <div>
+          <h1>골학 땡시 퀴즈</h1>
+          <p>업로드한 이미지를 정해진 시간 동안 보고 답안을 남겨보세요.</p>
+        </div>
+      </header>
+
+      <main>
+        <section id="setup-screen" class="card screen active">
+          <h2>퀴즈 설정</h2>
+          <p class="help-text">
+            메인 골학 퀴즈처럼 이미지를 중심으로 진행되지만, 정답은 따로 채점하지 않고
+            제한 시간 동안 입력한 내용을 결과에서 다시 확인하는 방식입니다.
+          </p>
+
+          <div class="setup-grid">
+            <label class="field">
+              <span>몇 초로 할지</span>
+              <input id="time-limit-input" type="number" min="1" max="600" value="15" inputmode="numeric" />
+            </label>
+
+            <label class="field">
+              <span>몇 문제를 풀지</span>
+              <input id="question-count-input" type="number" min="1" max="999" value="20" inputmode="numeric" />
+            </label>
+          </div>
+
+          <label class="upload-box" for="image-input">
+            <span class="upload-title">이미지 파일 업로드</span>
+            <span class="upload-desc">여러 장을 한 번에 선택할 수 있어요. 업로드하지 않으면 시작할 수 없습니다.</span>
+            <input id="image-input" type="file" accept="image/*" multiple />
+          </label>
+
+          <div id="upload-summary" class="upload-summary empty">선택된 이미지가 없습니다.</div>
+          <p id="setup-error" class="error"></p>
+
+          <div class="actions">
+            <button id="start-btn" class="primary">문제 시작</button>
+            <a class="ghost-link" href="index.html">메인으로</a>
+          </div>
+        </section>
+
+        <section id="exam-screen" class="card screen" aria-live="polite">
+          <div class="exam-header">
+            <div>
+              <h2>문제 진행 중</h2>
+              <p id="progress-text" class="progress-text"></p>
+            </div>
+            <div class="status-chip-group">
+              <div id="timer-label" class="badge">15초</div>
+            </div>
+          </div>
+
+          <div class="timer-panel">
+            <div class="timer-meta">
+              <strong>남은 시간</strong>
+              <span id="timer-text">15.0초</span>
+            </div>
+            <div class="timer-bar-track" aria-hidden="true">
+              <div id="timer-bar" class="timer-bar-fill"></div>
+            </div>
+          </div>
+
+          <article class="question-box">
+            <h3 id="question-title"></h3>
+            <div class="image-frame">
+              <img id="question-image" class="question-image" alt="현재 문제 이미지" />
+            </div>
+            <div id="answer-area" class="answer-area">
+              <label class="field">
+                <span>정답 입력</span>
+                <input id="answer-input" class="text-input" type="text" placeholder="시간이 끝나기 전까지 자유롭게 입력하세요" autocomplete="off" />
+              </label>
+            </div>
+            <div id="answer-closed" class="answer-closed hidden">
+              입력 시간이 종료되었습니다. 다음 문제로 자동 이동합니다.
+            </div>
+          </article>
+        </section>
+
+        <section id="result-screen" class="card screen" aria-live="polite">
+          <h2>결과 확인</h2>
+          <div id="result-summary" class="summary"></div>
+          <div id="result-list" class="result-list"></div>
+
+          <div class="actions wrap">
+            <button id="restart-btn" class="primary">같은 설정으로 다시 시작</button>
+            <button id="new-setup-btn" class="secondary">새로 설정하기</button>
+            <a class="ghost-link" href="index.html">메인으로</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="thangsi-quiz.js"></script>
+  </body>
+</html>
