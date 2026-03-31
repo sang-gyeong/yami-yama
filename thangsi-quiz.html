@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>야미야마 - 골학 땡시 퀴즈</title>
+    <title>야미야마 - 조직학 땡시 퀴즈</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,7 +17,7 @@
     <div class="app-shell">
       <header class="top-header">
         <div>
-          <h1>골학 땡시 퀴즈</h1>
+          <h1>조직학 땡시 퀴즈</h1>
           <p>업로드한 이미지를 정해진 시간 동안 보고 답안을 남겨보세요.</p>
         </div>
       </header>
@@ -26,7 +26,7 @@
         <section id="setup-screen" class="card screen active">
           <h2>퀴즈 설정</h2>
           <p class="help-text">
-            메인 골학 퀴즈처럼 이미지를 중심으로 진행되지만, 정답은 따로 채점하지 않고
+            메인 조직학 퀴즈처럼 이미지를 중심으로 진행되지만, 정답은 따로 채점하지 않고
             제한 시간 동안 입력한 내용을 결과에서 다시 확인하는 방식입니다.
           </p>
 
@@ -91,6 +91,9 @@
             </div>
             <div id="answer-closed" class="answer-closed hidden">
               입력 시간이 종료되었습니다. 다음 문제로 자동 이동합니다.
+            </div>
+            <div class="question-actions">
+              <button id="skip-btn" class="secondary" type="button">스킵하고 다음 문제</button>
             </div>
           </article>
         </section>

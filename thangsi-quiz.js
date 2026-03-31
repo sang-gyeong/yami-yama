@@ -31,6 +31,7 @@ const questionImage = document.getElementById('question-image');
 const answerArea = document.getElementById('answer-area');
 const answerInput = document.getElementById('answer-input');
 const answerClosed = document.getElementById('answer-closed');
+const skipBtn = document.getElementById('skip-btn');
 
 const resultSummary = document.getElementById('result-summary');
 const resultList = document.getElementById('result-list');
@@ -244,6 +245,16 @@ function moveToNextQuestion() {
   renderQuestion();
 }
 
+
+function skipCurrentQuestion() {
+  if (!examScreen.classList.contains('active')) {
+    return;
+  }
+
+  updateAnswerValue();
+  moveToNextQuestion();
+}
+
 function startCountdown() {
   clearTimers();
   state.countdownDurationMs = state.timeLimit * 1000;
@@ -271,7 +282,7 @@ function renderQuestion() {
   const item = state.quizImages[state.currentIndex];
   const result = state.results[state.currentIndex];
 
-  progressText.textContent = `${state.currentIndex + 1} / ${state.quizImages.length} 문제 · 자동으로 다음 문제로 넘어갑니다.`;
+  progressText.textContent = `${state.currentIndex + 1} / ${state.quizImages.length} 문제 · 시간 종료 시 자동으로 넘어갑니다. 스킵 버튼으로 바로 다음 문제로 이동할 수 있습니다.`;
   questionTitle.textContent = `문제 ${state.currentIndex + 1}`;
   questionImage.src = item.previewUrl;
   questionImage.alt = `${item.fileName} 미리보기`;
@@ -343,6 +354,7 @@ imageInput.addEventListener('change', async (event) => {
 );
 
 answerInput.addEventListener('input', updateAnswerValue);
+skipBtn.addEventListener('click', skipCurrentQuestion);
 answerInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
     event.preventDefault();

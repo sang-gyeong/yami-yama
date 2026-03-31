@@ -262,6 +262,12 @@ button {
   font-weight: 700;
 }
 
+.question-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .summary {
   background: #fff7ec;
   border: 1px solid var(--line);
