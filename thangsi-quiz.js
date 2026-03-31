@@ -10,7 +10,12 @@ const state = {
   countdownStartedAt: 0,
   countdownDurationMs: 15000,
   activeObjectUrls: new Set(),
+  countdownEndSoundReady: false,
 };
+
+const COUNTDOWN_END_SOUND_URL = 'https://assets.mixkit.co/active_storage/sfx/110/110-preview.mp3';
+const countdownEndSound = new Audio(COUNTDOWN_END_SOUND_URL);
+countdownEndSound.preload = 'auto';
 
 const setupScreen = document.getElementById('setup-screen');
 const examScreen = document.getElementById('exam-screen');
@@ -232,6 +237,41 @@ function closeAnswerInput() {
   answerInput.disabled = true;
 }
 
+function unlockCountdownEndSound() {
+  if (state.countdownEndSoundReady) {
+    return;
+  }
+
+  state.countdownEndSoundReady = true;
+  countdownEndSound.muted = true;
+  const unlockResult = countdownEndSound.play();
+
+  if (unlockResult && typeof unlockResult.then === 'function') {
+    unlockResult
+      .then(() => {
+        countdownEndSound.pause();
+        countdownEndSound.currentTime = 0;
+      })
+      .catch(() => {
+        state.countdownEndSoundReady = false;
+      })
+      .finally(() => {
+        countdownEndSound.muted = false;
+      });
+    return;
+  }
+
+  countdownEndSound.pause();
+  countdownEndSound.currentTime = 0;
+  countdownEndSound.muted = false;
+}
+
+function playCountdownEndSound() {
+  countdownEndSound.pause();
+  countdownEndSound.currentTime = 0;
+  countdownEndSound.play().catch(() => {});
+}
+
 function moveToNextQuestion() {
   clearTimers();
 
@@ -267,6 +307,7 @@ function startCountdown() {
     updateTimerUi(remaining);
 
     if (remaining <= 0) {
+      playCountdownEndSound();
       closeAnswerInput();
       state.nextQuestionTimeoutId = window.setTimeout(moveToNextQuestion, 500);
       return;
@@ -363,6 +404,7 @@ answerInput.addEventListener('keydown', (event) => {
 
 document.getElementById('start-btn').addEventListener('click', () => {
   setupError.textContent = '';
+  unlockCountdownEndSound();
 
   try {
     const { timeLimit, questionCount } = validateSetup();
